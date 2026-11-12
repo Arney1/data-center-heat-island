@@ -1,0 +1,107 @@
+{
+  "type": "FeatureCollection",
+  "name": "aws_pdx_boardman_geometries",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "campus_pdx178",
+        "name": "AWS PDX Bombing Campus (PDX-178)",
+        "facility_type": "Hyperscale AI & Cloud Data Center",
+        "operator": "Amazon Web Services (Vadata Inc.)",
+        "location": "Bombing Range Road, Boardman, Morrow County, OR",
+        "county": "Morrow",
+        "state": "Oregon",
+        "country": "USA",
+        "parcel_area_acres": 127.0,
+        "parcel_area_ha": 51.4,
+        "chronology": {
+          "pre_construction": [2019, 2020, 2021],
+          "construction": [2022, 2023, 2024],
+          "operational": [2025, 2026]
+        }
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-119.6385, 45.8160],
+            [-119.6295, 45.8160],
+            [-119.6295, 45.8225],
+            [-119.6385, 45.8225],
+            [-119.6385, 45.8160]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "buildings_pdx178",
+        "name": "Data Center Operational Buildings Footprint",
+        "description": "Four hyperscale data hall clusters and central utility buildings (~215,461 sq ft each)"
+      },
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [-119.6368, 45.8172],
+              [-119.6342, 45.8172],
+              [-119.6342, 45.8188],
+              [-119.6368, 45.8188],
+              [-119.6368, 45.8172]
+            ]
+          ],
+          [
+            [
+              [-119.6335, 45.8172],
+              [-119.6309, 45.8172],
+              [-119.6309, 45.8188],
+              [-119.6335, 45.8188],
+              [-119.6335, 45.8172]
+            ]
+          ],
+          [
+            [
+              [-119.6368, 45.8198],
+              [-119.6342, 45.8198],
+              [-119.6342, 45.8214],
+              [-119.6368, 45.8214],
+              [-119.6368, 45.8198]
+            ]
+          ],
+          [
+            [
+              [-119.6335, 45.8198],
+              [-119.6309, 45.8198],
+              [-119.6309, 45.8214],
+              [-119.6335, 45.8214],
+              [-119.6335, 45.8198]
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "control_pair_boardman",
+        "name": "Paired Industrial Control Site (DiD Benchmark)",
+        "facility_type": "Logistics & Manufacturing Industrial Park (Non-Data Center)",
+        "location": "Boardman Industrial Corridor, Boardman, OR",
+        "buffer_radius_m": 400
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-119.6975, 45.8361]
+      }
+    }
+  ]
+}

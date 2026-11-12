@@ -1,0 +1,23 @@
+# Python virtual environments
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Earth Engine / Auth tokens
+.ee/
+credentials
+
+# OS / Editor artifacts
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.bak
+
+# Outputs & temporary files
+*.tmp
+temp/

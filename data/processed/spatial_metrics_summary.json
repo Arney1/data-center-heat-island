@@ -1,0 +1,100 @@
+{
+  "campus_info": {
+    "name": "AWS PDX Bombing Campus (PDX-178)",
+    "location": "Boardman, Morrow County, Oregon",
+    "coordinates": [
+      -119.6342,
+      45.8193
+    ],
+    "total_area_ha": 51.4,
+    "building_area_ha": 8.6,
+    "non_building_ha": 42.8,
+    "building_ratio_pct": 16.7
+  },
+  "thermal_anomalies_celsius": {
+    "pre_construction_2019_2021": {
+      "0_tapak_penuh": 0.14,
+      "0a_bangunan": 0.21,
+      "0b_sisa_tapak": 0.09,
+      "1_0-500m": 0.05,
+      "2_500-1000m": -0.11,
+      "3_1-2km": -0.16
+    },
+    "post_construction_2025_2026": {
+      "0_tapak_penuh": 1.83,
+      "0a_bangunan": 2.48,
+      "0b_sisa_tapak": 1.34,
+      "1_0-500m": 0.67,
+      "2_500-1000m": 0.17,
+      "3_1-2km": -0.06
+    },
+    "delta_lst_anom": {
+      "0_tapak_penuh": 1.69,
+      "0a_bangunan": 2.27,
+      "0b_sisa_tapak": 1.25,
+      "1_0-500m": 0.62,
+      "2_500-1000m": 0.28,
+      "3_1-2km": 0.1
+    }
+  },
+  "spatial_gradients": {
+    "pre_gradient_c_per_km": -0.168,
+    "post_gradient_c_per_km": -0.584,
+    "delta_gradient_c_per_km": -0.416
+  },
+  "difference_in_differences_did": {
+    "delta_lst_campus": 1.82,
+    "delta_lst_control_logistics": 0.44,
+    "did_net_effect_celsius": 1.38,
+    "interpretation": "Kampus menunjukkan kenaikan LST netto +1.38 C relatif terhadap kontrol industri berpasangan."
+  },
+  "spatial_regression_coefficients": {
+    "pre_construction": {
+      "b0_Intercept": 3.12,
+      "b1_NDVI": -4.51,
+      "b2_NDBI": 6.22,
+      "b3_Elevation": -0.012,
+      "b4_Albedo": -2.15,
+      "b5_Distance_km": 0.08
+    },
+    "post_construction": {
+      "b0_Intercept": 4.05,
+      "b1_NDVI": -5.18,
+      "b2_NDBI": 7.84,
+      "b3_Elevation": -0.011,
+      "b4_Albedo": -2.3,
+      "b5_Distance_km": -0.39
+    },
+    "delta_b5_distance_effect": -0.47
+  },
+  "iktl_class_distribution_ha": {
+    "full_v1_v4": {
+      "Kelas 1 (Sangat Rendah)": 1240.5,
+      "Kelas 2 (Rendah)": 412.3,
+      "Kelas 3 (Sedang)": 186.2,
+      "Kelas 4 (Tinggi)": 48.7,
+      "Kelas 5 (Sangat Tinggi)": 32.1
+    },
+    "without_v1_thermal": {
+      "Kelas 1 (Sangat Rendah)": 1180.2,
+      "Kelas 2 (Rendah)": 450.1,
+      "Kelas 3 (Sedang)": 205.4,
+      "Kelas 4 (Tinggi)": 54.2,
+      "Kelas 5 (Sangat Tinggi)": 29.9
+    },
+    "without_v2_v3_surface": {
+      "Kelas 1 (Sangat Rendah)": 1290.4,
+      "Kelas 2 (Rendah)": 380.6,
+      "Kelas 3 (Sedang)": 175.0,
+      "Kelas 4 (Tinggi)": 45.1,
+      "Kelas 5 (Sangat Tinggi)": 28.7
+    },
+    "without_v4_conversion": {
+      "Kelas 1 (Sangat Rendah)": 1210.0,
+      "Kelas 2 (Rendah)": 430.5,
+      "Kelas 3 (Sedang)": 195.2,
+      "Kelas 4 (Tinggi)": 51.0,
+      "Kelas 5 (Sangat Tinggi)": 33.1
+    }
+  }
+}
