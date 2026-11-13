@@ -40,6 +40,73 @@ def load_data():
     return df_ts, df_built, metrics
 
 df_ts, df_built, metrics = load_data()
+# Pilihan lokasi studi
+lokasi = st.sidebar.selectbox(
+    "Pilih lokasi studi",
+    ["AWS Boardman", "H5 Quincy II"]
+)
+
+if lokasi == "H5 Quincy II":
+    st.title("Analisis H5 Quincy II")
+
+    berkas = st.sidebar.file_uploader(
+        "Unggah CSV hasil GEE Quincy",
+        type=["csv"]
+    )
+
+    if berkas is None:
+        st.info("Unggah CSV Quincy melalui panel sebelah kiri.")
+        st.stop()
+
+    try:
+        df_quincy = pd.read_csv(berkas)
+
+        kolom_wajib = {
+            "tahun", "zona",
+            "LST", "LSTanom", "NDVI", "NDBI", "EMIS"
+        }
+
+        kurang = kolom_wajib - set(df_quincy.columns)
+
+        if kurang:
+            st.error(
+                "Kolom CSV belum lengkap: "
+                + ", ".join(sorted(kurang))
+            )
+            st.stop()
+
+        if df_quincy.empty:
+            st.warning("CSV belum berisi data.")
+            st.stop()
+
+        if df_quincy.duplicated(["tahun", "zona"]).any():
+            st.error("Ada baris ganda untuk tahun dan zona yang sama.")
+            st.stop()
+
+        daftar_zona = df_quincy["zona"].dropna().unique().tolist()
+
+        zona = st.selectbox("Pilih zona", daftar_zona)
+
+        variabel = st.selectbox(
+            "Pilih variabel",
+            ["LST", "LSTanom", "NDVI", "NDBI", "EMIS"]
+        )
+
+        hasil = (
+            df_quincy[df_quincy["zona"] == zona]
+            .sort_values("tahun")
+        )
+
+        st.subheader(f"{variabel} — {zona}")
+        st.line_chart(hasil.set_index("tahun")[[variabel]])
+
+        st.subheader("Tabel hasil Quincy")
+        st.dataframe(hasil, use_container_width=True)
+
+    except (ValueError, pd.errors.ParserError, UnicodeError) as error:
+        st.error(f"CSV tidak dapat dibaca: {error}")
+
+    st.stop()
 
 # Sidebar
 st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/e/e1/Landsat_9_spacecraft_model.png", width=180)
