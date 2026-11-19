@@ -33,6 +33,7 @@ if BASE_DIR not in sys.path:
     sys.path.append(BASE_DIR)
 
 from dip_pipeline.gee_fetcher import GEEDataFetcher
+from dip_pipeline.timeseries import load_zonal_timeseries
 
 # Muat Data
 @st.cache_data
@@ -81,20 +82,20 @@ if lokasi == "H5 Quincy II":
         st.markdown("### Karakteristik Tapak H5 Quincy II")
         st.write("""
         - **Lokasi:** Quincy, Grant County, Washington (-119.8253° W, 47.2476° N)
-        - **Topologi Fasilitas:** 6 Gedung Data Halls terpisah dalam 1 klaster terpadu
-        - **Luas Tapak Kampus:** ~2.93 ha (Kompak/Urban-Industrial)
-        - **Luas Total Bangunan:** ~1.35 ha (Rasio Terbangun: ~46.1%)
+        - **Geometri masukan:** 6 poligon atap hasil digitasi; beberapa tumpang tindih
+        - **Luas tapak dan atap:** metadata konfigurasi belum dihitung ulang
+        - **Periode pra/pasca konstruksi:** belum diverifikasi untuk footprint ini
         - **Sensor Satelit:** Landsat 8 & 9 Collection 2 Level-2 (L2SP)
         """)
-        st.info("💡 **Peran Komparatif:** Membandingkan pola anomali termal antara kampus megaskala luas (AWS Boardman: 38 ha) vs klaster fasilitas padat (H5 Quincy II: 2.9 ha).")
+        st.info("Seri tahunan dapat dieksplorasi. Perbandingan sebelum/sesudah konstruksi menunggu pencocokan footprint dan bukti kronologi Quincy.")
 
     with col_q_map:
-        st.markdown("### Peta Interaktif Tapak & 6 Gedung H5 Quincy")
+        st.markdown("### Peta Tapak & Poligon Atap Quincy")
         try:
             fetcher_q = GEEDataFetcher(site_id="h5_quincy2")
             fmap_q = fetcher_q.create_interactive_map(height=420)
             st_folium(fmap_q, width=540, height=420)
-            st.caption("🔴 Merah: 6 Gedung Data Halls | 🔵 Cyan: Batas Kampus | 🟡 Cincin Buffer 0-2km")
+            st.caption("Merah: poligon atap; cyan: batas digitasi. Lingkaran peta offline hanya ilustrasi jarak dari titik tengah, bukan buffer tepi kampus.")
         except Exception as err:
             st.warning(f"Gagal memuat peta interaktif: {err}")
 
@@ -106,19 +107,11 @@ if lokasi == "H5 Quincy II":
         type=["csv"]
     )
 
-    if berkas is not None:
+    cache_quincy = os.path.join(DATA_DIR, "h5_quincy2_timeseries.csv")
+    sumber_quincy = berkas if berkas is not None else cache_quincy if os.path.exists(cache_quincy) else None
+    if sumber_quincy is not None:
         try:
-            df_quincy = pd.read_csv(berkas)
-            kolom_wajib = {"tahun", "zona", "LST", "LSTanom", "NDVI", "NDBI", "EMIS"}
-            kurang = kolom_wajib - set(df_quincy.columns)
-
-            if kurang:
-                st.error("Kolom CSV belum lengkap: " + ", ".join(sorted(kurang)))
-                st.stop()
-
-            if df_quincy.empty:
-                st.warning("CSV belum berisi data.")
-                st.stop()
+            df_quincy = load_zonal_timeseries(sumber_quincy, "h5_quincy2")
 
             daftar_zona = df_quincy["zona"].dropna().unique().tolist()
             col_z, col_v = st.columns(2)
@@ -128,6 +121,18 @@ if lokasi == "H5 Quincy II":
                 variabel = st.selectbox("Pilih Variabel Spektral/Termal:", ["LST", "LSTanom", "NDVI", "NDBI", "EMIS"])
 
             hasil = df_quincy[df_quincy["zona"] == zona].sort_values("tahun")
+            valid = hasil.dropna(subset=[variabel])
+            if not valid.empty:
+                unit = " °C" if variabel in ("LST", "LSTanom") else ""
+                awal, akhir = valid.iloc[0], valid.iloc[-1]
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Rata-rata antar tahun valid", f"{valid[variabel].mean():.2f}{unit}")
+                c2.metric(f"Nilai {int(akhir['tahun'])}", f"{akhir[variabel]:.2f}{unit}")
+                c3.metric(f"Perubahan {int(awal['tahun'])}–{int(akhir['tahun'])}",
+                          f"{akhir[variabel] - awal[variabel]:+.2f}{unit}")
+                st.caption(f"{len(valid)} dari {len(hasil)} tahun memiliki nilai. Perubahan akhir–awal bukan estimasi efek pembangunan atau operasi server.")
+            else:
+                st.info("Tidak ada nilai valid untuk variabel dan zona ini.")
             st.subheader(f"Dinamika {variabel} pada {zona}")
             st.line_chart(hasil.set_index("tahun")[[variabel]])
 
@@ -381,6 +386,7 @@ elif menu == "🤖 Machine Learning: Tutupan Lahan (Minggu 1)":
     """)
 
     if ml_results is not None:
+        st.warning("Metrik ML tersimpan belum memiliki provenance dan validasi spasial. Versi lama dapat memakai data sintetis atau pseudo-label; angka ini bukan akurasi lapangan terverifikasi.")
         rf_metrics = ml_results["models_comparison"]["Random Forest"]
         svm_metrics = ml_results["models_comparison"]["Support Vector Machine"]
 

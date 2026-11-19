@@ -1,107 +1,107 @@
-# Laporan Metodologi Pengolahan Citra Digital (DIP)
-## Riset Multitemporal Suhu Permukaan dan Perubahan Tutupan Lahan di Sekitar Kampus Pusat Data
+# Metodologi DIP dan Status Validasi
 
-- **Lokasi Studi:** AWS PDX Bombing Campus (PDX-178), Boardman, Morrow County, Oregon
-- **Sensor:** Landsat 8 OLI/TIRS & Landsat 9 OLI-2/TIRS-2 (Collection 2 Level-2, L2SP)
-- **Rentang Waktu:** 2013 – 2026 (14 Tahun Observasi Musim Panas/Kering Juni–September)
-- **Mata Kuliah:** Pengolahan Citra Digital (Digital Image Processing / DIP)
+Pembaruan 20 November 2026. Dua lokasi dikonfigurasi: AWS Boardman dan kandidat
+H5 Quincy II. Implementasi modul tidak berarti semua keluaran sudah tervalidasi.
+Pengguna sudah menghasilkan dan menampilkan seri LST Quincy; angka Boardman lama
+tetap artefak tersimpan, bukan hasil reproduksi baru dalam pembaruan ini.
 
----
+## 1. Geometri dan skala analisis
 
-## 1. Landasan Teori Pengolahan Citra Digital (DIP)
+Batas kampus dan atap dibedakan. Bentuk union atap, potong terhadap kampus, lalu
+hitung sisa tapak dengan difference. Jangan menjumlahkan luas poligon tumpang
+tindih; enam input atap Quincy bukan bukti enam data hall. Angka luas konfigurasi
+belum dihitung ulang dan harus dilabeli metadata sementara.
 
-Proyek ini menerapkan konsep-konsep inti pengolahan citra digital tingkat menengah hingga lanjut (*intermediate-to-advanced digital image processing*) pada citra satelit multispektral dan termal:
+Zona utama: kampus, atap, sisa tapak, 0–500 m, 500–1000 m dan 1–2 km dari batas
+kampus. Buffer analisis berbasis tepi kampus; lingkaran Folium dari centroid hanya
+ilustrasi dan tidak identik dengan geometri buffer GEE.
 
-### 1.1 Kalibrasi Radiometrik & Konversi Skala
-Sensor satelit merekam radiansi spektral dalam bentuk *Digital Number* (DN). Pada produk Landsat Collection 2 Level-2 (L2SP), kalibrasi radiometrik dilakukan dengan rumus transformasi linier:
+Reflektansi tersedia pada kisi 30 m. Sensor termal Landsat 8 memiliki resolusi
+asli 100 m yang disampel ulang ke produk 30 m; piksel keluaran yang berdekatan
+bukan observasi termal 30 m independen. Buffer atap -15 m tidak menjamin piksel
+termal murni dan dapat menghapus atap sempit. Jangan menyebutnya isolasi panas
+atap/server tanpa analisis campuran dan ukuran tapak.
+[Sumber USGS](https://www.usgs.gov/landsat-missions/landsat-8).
 
-1. **Reflektansi Permukaan (Surface Reflectance, SR):**
-   $$\rho_{\lambda} = DN_{\text{SR}} \times 0.0000275 - 0.2$$
-   Hasilnya adalah rasio reflektansi tanpa dimensi pada rentang $[0, 1]$.
+## 2. Kalibrasi dan QA
 
-2. **Suhu Permukaan Tanah (Land Surface Temperature, LST):**
-   $$T_K = DN_{\text{ST\_B10}} \times 0.00341802 + 149.0$$
-   $$T_{Celsius} = T_K - 273.15$$
+Produk `LANDSAT/LC08/C02/T1_L2` dan `LANDSAT/LC09/C02/T1_L2`, proses `L2SP`:
 
-3. **Emisivitas Permukaan (ASTER GED Emissivity):**
-   $$\varepsilon = DN_{\text{ST\_EMIS}} \times 0.0001$$
+```text
+SR = DN * 0.0000275 - 0.2
+LST (°C) = DN_ST_B10 * 0.00341802 + 149.0 - 273.15
+EMIS = DN_ST_EMIS * 0.0001
+```
 
-### 1.2 Operasi Bitwise & Penyaringan Kualitas (Quality Assessment Masking)
-Kualitas piksel dikendalikan melalui operasi logika *bitwise AND* pada pita `QA_PIXEL` untuk mengeliminasi gangguan atmosfer:
-- Dilated Cloud: `(QA_PIXEL & (1 << 1)) == 0`
-- Cloud: `(QA_PIXEL & (1 << 3)) == 0`
-- Cloud Shadow: `(QA_PIXEL & (1 << 4)) == 0`
-- Ketidakpastian Suhu: `ST_QA * 0.01 < 3.0 Kelvin`
-- Jarak Piksel ke Awan: `ST_CDIST * 0.01 > 0.2 km`
+Kode saat ini memask QA_PIXEL bit 1/3/4, ST_QA*0.01 < 3 K dan
+ST_CDIST*0.01 > 0.2 km. Audit tambahan fill/cirrus/salju/saturasi perlu diselesaikan
+dan disamakan antara JavaScript/Python sebelum eksperimen final. Nilai missing
+tetap missing; tidak diisi suhu referensi fiktif.
 
-Piksel yang tidak memenuhi seluruh kriteria di atas dimask (*masked out*) menjadi nilai `NoData` (NaN) agar tidak mencemari nilai agregasi.
+NDVI=(B5-B4)/(B5+B4), NDBI=(B6-B5)/(B6+B5), MNDWI=(B3-B6)/(B3+B6).
+Proksi albedo yang diimplementasikan: 0.356 B2 + 0.130 B4 + 0.373 B5 + 0.085 B6
++ 0.072 B7 - 0.0018. Dokumentasikan validitas proksi untuk material atap dan
+sensor yang dipakai. `normalizedDifference` GEE memask input negatif; audit efek
+ini terhadap reflektansi hasil scaling, jangan menganggap semua nilai SR dalam [0,1].
+[Katalog produk](https://developers.google.com/earth-engine/datasets/catalog/LANDSAT_LC08_C02_T1_L2).
 
-### 1.3 Transformasi Spektral & Ekstraksi Fitur (Spectral Indices)
-Transformasi rasio spektral digunakan untuk menonjolkan fitur fisik tutupan lahan tertentu dan menekan efek topografi serta variasi iluminasi matahari:
+## 3. Komposit, ketersediaan dan anomali
 
-1. **NDVI (Normalized Difference Vegetation Index):**
-   $$NDVI = \frac{\rho_{NIR} - \rho_{Red}}{\rho_{NIR} + \rho_{Red}} = \frac{SR\_B5 - SR\_B4}{SR\_B5 + SR\_B4}$$
-2. **NDBI (Normalized Difference Built-up Index):**
-   $$NDBI = \frac{\rho_{SWIR1} - \rho_{NIR}}{\rho_{SWIR1} + \rho_{NIR}} = \frac{SR\_B6 - SR\_B5}{SR\_B6 + SR\_B5}$$
-3. **MNDWI (Modified Normalized Difference Water Index):**
-   $$MNDWI = \frac{\rho_{Green} - \rho_{SWIR1}}{\rho_{Green} + \rho_{SWIR1}} = \frac{SR\_B3 - SR\_B6}{SR\_B3 + SR\_B6}$$
-4. **Broadband Shortwave Surface Albedo (Liang, 2001 / Tasumi dkk., 2008):**
-   $$\alpha = 0.356 B_2 + 0.130 B_4 + 0.373 B_5 + 0.085 B_6 + 0.072 B_7 - 0.0018$$
+Komposit median Juni–September per tahun. Laporkan scene, tanggal, fraksi valid
+per scene, jumlah observasi per piksel/zona dan tahun kosong. Menghitung scene
+bersih >=70% tidak otomatis berarti komposit hanya memakai scene tersebut:
+periksa apakah filter itu benar diterapkan atau hanya dilaporkan.
 
----
+LSTanom = LST - median LST referensi regional per tahun. Referensi kerja: cincin
+5–12 km, WorldCover 2021 pertanian (kelas 40), lereng SRTM <3°. Ini mask satu tahun,
+bukan bukti pertanian stabil 2013–2026. Perlu pemeriksaan stabilitas, irigasi dan
+perubahan tutupan; perbandingan lintas lokasi dipengaruhi referensi masing-masing.
+Jika referensi tidak tersedia, LSTanom harus kosong; LST asli masih dapat dilaporkan.
 
-## 2. Segmentasi Citra & Klasifikasi Spasial
+Fetcher Python kini memakai mask referensi dan median tanpa fallback 32 °C. Jalur
+zonal Python masih perlu disamakan dengan skrip JS terkait mask MNDWI dan rounding
+sebelum menggabungkan hasil dua jalur sebagai satu eksperimen.
 
-### 2.1 Segmentasi Berbasis Ambang Spektral Multi-Indeks
-Piksel lahan terbangun (*built-up surface*) diekstrak menggunakan aturan ambang ganda:
-$$\text{BuiltMask} = (NDBI > -0.10) \land (NDVI < 0.20) \land (MNDWI < 0)$$
+## 4. Kronologi dan sebelum/sesudah
 
-### 2.2 Pemetaan Lahan Terbangun Persisten (*Persistent Urban Sprawl Mapping*)
-Untuk membedakan pekerjaan konstruksi temporer atau pengolahan tanah pertanian dari pembangunan gedung permanen, diterapkan algoritma logika **Backward Cumulative AND**:
-- Dimulai dari tahun mutakhir (2026), iterasi berjalan mundur hingga 2013.
-- Sebuah piksel ditetapkan mulai terbangun di tahun $T$ jika dan hanya jika piksel tersebut bernilai terbangun di tahun $T$ dan tetap terbangun di semua tahun berikutnya ($t > T$).
+Boardman mempertahankan asumsi lama pra 2019–2021 dan pasca 2025–2026. Statusnya
+perlu bukti tanggal citra/operasi. Quincy tidak memakai periode tersebut: fasilitas
+lama dan ekspansi Yahoo berbeda, izin bukan bukti tanggal selesai bangunan, dan
+akuisisi bukan konstruksi. `fetch_epoch_composites` Quincy diblokir sampai periode
+ditetapkan. [Audit kronologi](QUINCY_CHRONOLOGY_AUDIT.md).
 
-### 2.3 Clustering Tanpa Supervisi K-Means (Weka K-Means)
-Diterapkan pada tumpukan fitur $[NDVI, NDBI, MNDWI]$ untuk menguji stabilitas segmentasi klaster tanpa bias manusia pada variasi $k \in \{5, 10, 20\}$.
+Peta persistent built-up adalah hasil aturan spektral, bukan tanggal konstruksi
+ground truth. Ambang NDBI >-0.1, NDVI <0.2 dan MNDWI <0 merupakan asumsi awal.
+Tahun tertutup awan tidak boleh disamakan dengan tidak terbangun. Validasi dari
+citra bertanggal harus mendahului pemilihan periode final.
 
----
+## 5. Analisis lanjutan dan batas inferensi
 
-## 3. Analisis Termal Spasial & Temporal
+- Gradien cincin mengukur perubahan spasial rerata; sesuaikan tutupan lahan dan
+  laporkan ketidakpastian. Delta gradien tidak sendirinya membuktikan efek operasi.
+- Sen's slope/Kendall tau adalah ringkasan tren; tau saja bukan p-value uji
+  Mann–Kendall lengkap. Periksa autokorelasi, multiple testing dan perubahan fase.
+- Audit EMIS/NDVI dapat menunjukkan sensitivitas retrieval; korelasi kecil tidak
+  menjamin bebas artefak emisivitas.
+- Regresi spasial perlu pemeriksaan VIF, residual dan validasi blok; koefisien
+  jarak bukan estimasi kausal panas server.
+- IKTL adalah indeks deskriptif; kelas dan bobot perlu sensitivitas/ablasi.
+- DiD memerlukan kontrol relevan, periode sah, parallel trends, uji plasebo dan
+  ketidakpastian. Kandidat koordinat kontrol Quincy belum tervalidasi.
 
-### 3.1 Normalisasi Anomali Termal Regional
-Variabilitas cuaca dan gelombang panas tahunan dieliminasi dengan menghitung anomali terhadap area referensi pertanian stabil regional ($T_{ref}$):
-$$LST_{anom}(x, y, t) = LST(x, y, t) - \text{median}(LST_{ref}(t))$$
+## 6. DIP dan ML
 
-### 3.2 Gradien Spasial Penurunan Suhu
-Mengukur laju peluruhan suhu dari tepi batas kampus menuju lingkungan sekitar:
-$$G = \frac{T_{\text{zona\_jauh}} - T_{\text{zona\_dekat}}}{d_{\text{zona\_jauh}} - d_{\text{zona\_dekat}}} \quad [^\circ\text{C/km}]$$
-Perubahan gradien $\Delta G = G_{\text{pasca}} - G_{\text{pra}}$ membuktikan adanya pembentukan gradien pulau panas lokal pasca-pembangunan.
+Kalibrasi, masking, komposit, indeks, segmentasi dan zonal statistics adalah bagian
+DIP. RF/SVM tersedia dengan random stratified split; spatial block ID tersedia
+tetapi evaluator belum memakainya. Sampling GEE memakai pseudo-label dari indeks,
+sehingga belum menjadi evaluasi berlabel independen. Data demo sintetis hanya
+untuk alur kode, bukan bukti ilmiah. Lihat [roadmap eksperimen](ML_AND_PAPER_ROADMAP.md).
 
-### 3.3 Tren Non-Parametrik Piksel
-- **Sen's Slope:** Menghitung kemiringan tren tahunan tanpa asumsi normalitas:
-  $$\beta = \text{median}\left(\frac{LST_{anom, j} - LST_{anom, i}}{t_j - t_i}\right)$$
-- **Mann-Kendall Rank Correlation ($\tau$):** Menguji signifikansi arah tren secara statistik.
+## 7. Status hasil
 
-### 3.4 Agregasi Spasial (Spatial Resampling & Kernel Filtering)
-Resolusi spasial asli pita termal Landsat 8/9 TIRS adalah $\sim 100\text{ m}$, yang diinterpolasi oleh USGS ke kisi $30\text{ m}$ menggunakan tetangga terdekat (*nearest neighbor*), menghasilkan artefak *blockiness*. Untuk mengatasi hal tersebut, perhitungan indeks komposit (IKTL) diagregasi ulang ke kisi $100\text{ m}$ menggunakan reduksi rata-rata area (`reduceResolution`).
-
----
-
-## 4. Ringkasan Hasil Empiris AWS PDX Bombing Campus
-
-| Metrik / Parameter | Pra-Konstruksi (2019-2021) | Pasca-Konstruksi (2025-2026) | Perubahan ($\Delta$) | Catatan Metodologis |
-|---|---|---|---|---|
-| **Luas Bangunan Terbangun** | 0.20 ha | 8.60 ha | **+8.40 ha** | 4 Data Halls terdeteksi persisten |
-| **Anomali LST Bangunan ($0a$)** | +0.21 °C | +2.48 °C | **+2.27 °C** | Relatif terhadap referensi regional |
-| **Anomali LST Tapak Penuh ($0$)** | +0.14 °C | +1.83 °C | **+1.69 °C** | Efek campuran atap + paving + tanah |
-| **Anomali LST Penyangga 0–500m** | +0.05 °C | +0.67 °C | **+0.62 °C** | Jangkauan efek termal lokal |
-| **Anomali LST Penyangga 1–2km** | -0.16 °C | -0.06 °C | **+0.10 °C** | Stabil, mendekati baseline regional |
-| **Gradien Spasial ($G$)** | -0.168 °C/km | -0.584 °C/km | **-0.416 °C/km** | Profil peluruhan makin curam |
-| **Difference-in-Differences (DiD)** | — | — | **+1.38 °C** | Netto di atas kontrol industri non-DC |
-| **Audit Emisivitas ASTER GED** | — | — | $r = -0.18$ | Bebas dari artefak penyesuaian emisivitas |
-
----
-
-## 5. Kesimpulan Tahap Pengolahan Citra Digital (DIP)
-
-Tahap Pengolahan Citra Digital (Tahap 1 hingga Tahap 13) telah diselesaikan secara lengkap, terstruktur, dan tervalidasi. Seluruh keluaran data raster, tabel agregasi, dan kode Python telah siap dihubungkan ke tahap berikutnya: **Pemodelan Machine Learning** dan **Pengembangan Antarmuka Interaktif Streamlit**.
+Dokumen sebelumnya menyatakan semua 13 tahap selesai dan memuat angka yang berbeda
+dari JSON Boardman. Tabel tersebut tidak dipakai sebagai kesimpulan baru. Angka
+lama tetap disimpan di `data/processed/` agar tidak kehilangan artefak, tetapi
+harus ditautkan ke ekspor, parameter, sumber dan versi yang dapat direproduksi
+sebelum dikutip dalam paper. Grafik Quincy dari CSV menunjukkan data berhasil
+ditampilkan, bukan bahwa seluruh metodologi telah selesai divalidasi.

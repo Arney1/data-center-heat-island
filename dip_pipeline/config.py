@@ -186,6 +186,24 @@ CONSTRUCTION_YEARS = [2022, 2023, 2024]
 POST_YEARS = [2025, 2026]
 K_MEANS_REF_YEAR = 2025
 
+# Periode lama Boardman dipertahankan sebagai asumsi studi, bukan bukti tanggal operasi.
+# Quincy belum memiliki pencocokan footprint dengan arsip citra/izin bertanggal.
+# Jangan menyamakan pergantian pemilik dengan pembangunan fasilitas.
+SITES["aws_pdx"].update({
+    "pre_years": PRE_YEARS,
+    "post_years": POST_YEARS,
+    "chronology_status": "legacy_assumption_requires_verification",
+})
+SITES["h5_quincy2"].update({
+    "pre_years": None,
+    "post_years": None,
+    "chronology_status": "unverified_footprint_and_construction_dates",
+    "chronology_sources": [
+        "https://h5datacenters.com/quincy-II-data-center.html",
+        "https://ecology.wa.gov/getattachment/399a8926-5aa6-4cbd-bf04-bf97f41f088f/20170713YahooTechSupport.pdf",
+    ],
+})
+
 # Ambang Batas Kualitas Citra (Quality Assessment Gates)
 QA_CONFIG = {
     "st_qa_max_kelvin": 3.0,     # Batas ketidakpastian suhu maksimum ST_QA

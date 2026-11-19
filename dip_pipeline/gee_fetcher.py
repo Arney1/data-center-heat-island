@@ -11,6 +11,7 @@ import logging
 from typing import Dict, List, Tuple, Optional, Any
 import numpy as np
 import pandas as pd
+from .timeseries import load_zonal_timeseries
 
 # Konfigurasi logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -46,9 +47,7 @@ from .config import (
     SEASON_END_MONTH,
     QA_CONFIG,
     LANDSAT_SCALING,
-    SPECTRAL_THRESHOLDS,
-    PRE_YEARS,
-    POST_YEARS
+    SPECTRAL_THRESHOLDS
 )
 
 
@@ -69,7 +68,9 @@ class GEEDataFetcher:
     """
 
     def __init__(self, site_id: str = "aws_pdx", project_id: Optional[str] = None):
-        self.site_id = site_id if site_id in SITES else "aws_pdx"
+        if site_id not in SITES:
+            raise ValueError(f"Lokasi tidak dikenal: {site_id}. Pilih salah satu {list(SITES)}")
+        self.site_id = site_id
         self.site_info = SITES[self.site_id]
         self.site_name = self.site_info["campus_name"]
         self.campus_coords = self.site_info["campus_bounds"]
@@ -106,8 +107,7 @@ class GEEDataFetcher:
             self.is_authenticated = False
             logger.warning(
                 f"Earth Engine belum terautentikasi ({e}). "
-                "Fetcher akan menyediakan data terstruktur dari cache lokal / generator "
-                "sehingga alur Machine Learning tetap dapat dieksekusi secara mulus."
+                "Cache harus sesuai lokasi. Data sintetis hanya tersedia dengan allow_synthetic=True."
             )
 
     def _init_geometries(self):
@@ -116,7 +116,10 @@ class GEEDataFetcher:
         self.campus_geom = ee.Geometry.Polygon(self.campus_coords)
 
         # 2. Poligon Gedung Pusat Data (MultiPolygon)
-        self.buildings_raw = ee.Geometry.MultiPolygon(self.buildings_polygons)
+        # FeatureCollection.geometry menggabungkan poligon yang tumpang tindih.
+        self.buildings_raw = ee.FeatureCollection([
+            ee.Feature(ee.Geometry.Polygon([ring])) for ring in self.buildings_polygons
+        ]).geometry()
         self.buildings_geom = self.buildings_raw.intersection(self.campus_geom, 1)
         self.campus_rest_geom = self.campus_geom.difference(self.buildings_geom, 1)
         self.buildings_core_geom = self.buildings_geom.buffer(-15, 1)
@@ -217,14 +220,21 @@ class GEEDataFetcher:
 
     def fetch_epoch_composites(self) -> Tuple[Any, Any, Any]:
         """
-        Menghasilkan komposit Pre-Konstruksi (2019-2021) dan Post-Konstruksi (2025-2026),
-        serta citra diferensialnya (dLST, dNDVI, dNDBI).
+        Menghasilkan komposit pra/pasca menurut konfigurasi lokasi.
+        Quincy ditolak sampai footprint dan periode studinya diverifikasi.
         """
+        pre_years = self.site_info.get("pre_years")
+        post_years = self.site_info.get("post_years")
+        if not pre_years or not post_years:
+            raise ValueError(
+                f"Periode pra/pasca {self.site_name} belum diverifikasi. "
+                "Lihat docs/QUINCY_CHRONOLOGY_AUDIT.md; seri waktu tahunan tetap dapat digunakan."
+            )
         if not self.is_authenticated or ee is None:
             raise RuntimeError("Earth Engine tidak terautentikasi.")
 
-        pre_imgs = [self.get_annual_composite(y) for y in PRE_YEARS]
-        post_imgs = [self.get_annual_composite(y) for y in POST_YEARS]
+        pre_imgs = [self.get_annual_composite(y) for y in pre_years]
+        post_imgs = [self.get_annual_composite(y) for y in post_years]
 
         pre_composite = ee.ImageCollection.fromImages(pre_imgs).median()
         post_composite = ee.ImageCollection.fromImages(post_imgs).median()
@@ -242,22 +252,30 @@ class GEEDataFetcher:
         untuk setiap zona spasial (0_tapak_penuh, 0a_bangunan, dsb.).
         """
         if not self.is_authenticated:
-            logger.info("Mengambil deret waktu dari cache lokal yang telah terverifikasi.")
-            csv_path = os.path.join(PROCESSED_DATA_DIR, "zonal_lst_timeseries_2013_2026.csv")
-            return pd.read_csv(csv_path)
+            filename = ("zonal_lst_timeseries_2013_2026.csv" if self.site_id == "aws_pdx"
+                        else f"{self.site_id}_timeseries.csv")
+            csv_path = os.path.join(PROCESSED_DATA_DIR, filename)
+            if not os.path.exists(csv_path):
+                raise FileNotFoundError(f"Cache {self.site_name} belum tersedia: {csv_path}")
+            frame = load_zonal_timeseries(csv_path, self.site_id)
+            frame["site_name"] = self.site_name
+            return frame
 
         rows = []
         for year in YEARS:
             try:
                 comp = self.get_annual_composite(year)
                 # Hitung suhu referensi regional
-                ref_lst_dict = comp.select("LST").reduceRegion(
-                    reducer=ee.Reducer.mean(),
+                reference = comp.select("LST")
+                if self.ref_mask is None:
+                    raise ValueError("Mask area referensi tidak tersedia.")
+                ref_lst_dict = reference.updateMask(self.ref_mask).reduceRegion(
+                    reducer=ee.Reducer.median(),
                     geometry=self.ref_geom,
-                    scale=100,
+                    scale=60,
                     maxPixels=1e9
                 ).getInfo()
-                ref_lst = ref_lst_dict.get("LST", 32.0)
+                ref_lst = ref_lst_dict.get("LST")
 
                 # Ekstraksi statistik tiap zona
                 zonal_stats = comp.reduceRegions(
@@ -272,14 +290,16 @@ class GEEDataFetcher:
                     lst_val = props.get("LST")
                     if lst_val is not None:
                         rows.append({
+                            "site_id": self.site_id,
+                            "site_name": self.site_name,
                             "tahun": year,
                             "zona": z_name,
                             "LST": round(float(lst_val), 2),
-                            "LSTanom": round(float(lst_val - ref_lst), 2),
-                            "EMIS": round(float(props.get("EMIS", 0.968)), 4),
-                            "NDVI": round(float(props.get("NDVI", 0.3)), 3),
-                            "NDBI": round(float(props.get("NDBI", -0.15)), 3),
-                            "refLST": round(float(ref_lst), 2)
+                            "LSTanom": float(lst_val - ref_lst) if ref_lst is not None else np.nan,
+                            "EMIS": props.get("EMIS"),
+                            "NDVI": props.get("NDVI"),
+                            "NDBI": props.get("NDBI"),
+                            "refLST": ref_lst
                         })
             except Exception as e:
                 logger.error(f"Gagal mengambil komposit tahun {year}: {e}")
@@ -287,9 +307,11 @@ class GEEDataFetcher:
         df = pd.DataFrame(rows)
         return df
 
-    def extract_ml_feature_dataset(self, n_samples: int = 1200, random_state: int = 42) -> pd.DataFrame:
+    def extract_ml_feature_dataset(self, n_samples: int = 1200, random_state: int = 42,
+                                   allow_synthetic: bool = False) -> pd.DataFrame:
         """
-        Mengekstraksi dataset fitur piksel multitemporal terstruktur untuk pelatihan Machine Learning.
+        Mengekstraksi fitur piksel 2025. Label live adalah pseudo-label ambang.
+        allow_synthetic=True secara eksplisit membuat demo, bukan hasil pengamatan.
         Fitur yang diekstraksi:
         - Spektral: SR_B2, SR_B3, SR_B4, SR_B5, SR_B6, SR_B7
         - Indeks: NDVI, NDBI, MNDWI, Albedo
@@ -301,10 +323,11 @@ class GEEDataFetcher:
           3 = Tanah Terbuka / Pasir (Bare Soil)
           4 = Permukaan Air / Retensi (Water)
         """
-        output_csv = os.path.join(PROCESSED_DATA_DIR, "ml_feature_dataset.csv")
+        suffix = "_synthetic" if allow_synthetic else ""
+        output_csv = os.path.join(PROCESSED_DATA_DIR, f"ml_feature_dataset_{self.site_id}{suffix}.csv")
 
         # Jika EE terautentikasi, lakukan pengambilan live sampling
-        if self.is_authenticated and ee is not None:
+        if not allow_synthetic and self.is_authenticated and ee is not None:
             try:
                 logger.info("Menjalankan sampling fitur langsung dari Google Earth Engine...")
                 dem = ee.Image("USGS/SRTMGL1_003").select("elevation")
@@ -328,6 +351,11 @@ class GEEDataFetcher:
                 for idx, feat in enumerate(samples["features"]):
                     coords = feat["geometry"]["coordinates"]
                     props = feat["properties"]
+                    required = ["NDVI", "NDBI", "MNDWI", "albedo", "LST", "EMIS",
+                                "elevation", "slope", "dist_km",
+                                "SR_B2", "SR_B3", "SR_B4", "SR_B5", "SR_B6", "SR_B7"]
+                    if any(props.get(column) is None for column in required):
+                        raise ValueError("Sampel GEE tidak memiliki seluruh fitur yang diperlukan.")
 
                     ndvi_val = props.get("NDVI", 0.0)
                     ndbi_val = props.get("NDBI", 0.0)
@@ -336,7 +364,7 @@ class GEEDataFetcher:
                     lst_val = props.get("LST", 33.0)
                     dist_km = props.get("dist_km", 1.0)
 
-                    # Pseudo-labeling berbasis kriteria spektral baku internasional
+                    # Pseudo-label heuristik; bukan label referensi independen.
                     if mndwi_val > 0.0:
                         lc_class = 4  # Air
                         lc_name = "Water"
@@ -366,7 +394,7 @@ class GEEDataFetcher:
                         "MNDWI": mndwi_val,
                         "Albedo": albedo_val,
                         "LST": lst_val,
-                        "LSTanom": lst_val - 32.5,
+                        "LSTanom": np.nan,  # Memerlukan referensi regional yang diukur.
                         "EMIS": props.get("EMIS", 0.968),
                         "elevation": props.get("elevation", 185.0),
                         "slope": props.get("slope", 1.5),
@@ -376,14 +404,23 @@ class GEEDataFetcher:
                     })
 
                 df = pd.DataFrame(data_records)
+                if df.empty:
+                    raise ValueError("Tidak ada sampel GEE valid.")
+                df["site_id"] = self.site_id
+                df["data_source"] = "gee_landsat"
+                df["label_source"] = "spectral_threshold_pseudolabel"
+                os.makedirs(PROCESSED_DATA_DIR, exist_ok=True)
                 df.to_csv(output_csv, index=False)
                 logger.info(f"Berhasil mengekstraksi {len(df)} titik fitur langsung dari GEE ke {output_csv}")
                 return df
             except Exception as e:
-                logger.warning(f"Live sampling GEE gagal ({e}). Menggunakan generator presisi tinggi berbasis parameter terkalibrasi.")
+                raise RuntimeError("Sampling GEE gagal; tidak diganti data sintetis.") from e
 
-        # Fallback Generator Presisi Tinggi (Memastikan pipeline ML selalu siap dan deterministik)
-        logger.info(f"Membangkitkan dataset fitur terkalibrasi berbasis geometri {self.site_name}...")
+        if not allow_synthetic:
+            raise RuntimeError("Sampling memerlukan autentikasi GEE. allow_synthetic=True hanya untuk demonstrasi.")
+
+        # Generator demo eksplisit. Tidak digunakan sebagai hasil pengamatan.
+        logger.info(f"Membangkitkan dataset SINTETIS DEMO untuk {self.site_name}...")
         np.random.seed(random_state)
         n_pts = n_samples
 
@@ -508,6 +545,9 @@ class GEEDataFetcher:
             })
 
         df = pd.DataFrame(records)
+        df["site_id"] = self.site_id
+        df["data_source"] = "synthetic_demo"
+        df["label_source"] = "synthetic_generator"
         os.makedirs(os.path.dirname(output_csv), exist_ok=True)
         df.to_csv(output_csv, index=False)
         logger.info(f"Dataset fitur berhasil disimpan ke {output_csv} ({len(df)} sampel).")
