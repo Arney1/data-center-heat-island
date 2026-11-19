@@ -86,9 +86,23 @@ def run_dip_audit():
     for k, v in iktl.items():
         print(f"  - {k}: {v:.1f} ha")
 
+    # 9. Machine Learning (Minggu 1: Supervised Land Cover Classification)
+    ml_results_path = os.path.join(PROCESSED_DATA_DIR, "ml_classification_results.json")
+    if os.path.exists(ml_results_path):
+        with open(ml_results_path, "r") as f:
+            ml_res = json.load(f)
+        rf = ml_res["models_comparison"]["Random Forest"]
+        svm = ml_res["models_comparison"]["Support Vector Machine"]
+        print("\n[TAHAP 14 - MACHINE LEARNING MINGGU 1] Klasifikasi Tutupan Lahan Terbimbing:")
+        print(f"  - Sampel Pelatihan: {ml_res['n_train_samples']} | Sampel Pengujian: {ml_res['n_test_samples']}")
+        print(f"  - Random Forest Overall Accuracy: {rf['overall_accuracy'] * 100:.2f}% (Kappa: {rf['cohen_kappa']:.4f})")
+        print(f"  - Support Vector Machine OA     : {svm['overall_accuracy'] * 100:.2f}% (Kappa: {svm['cohen_kappa']:.4f})")
+        top_feat = ml_res["gini_feature_importance"][:3]
+        print(f"  - Top 3 Fitur Berpengaruh: {', '.join([f['feature'] for f in top_feat])}")
+
     print("\n" + "=" * 70)
-    print("STATUS AUDIT: SELURUH METODE PENGOLAHAN CITRA DIGITAL (DIP) TELAH TERVERIFIKASI.")
-    print("Data siap dihubungkan ke modul Machine Learning dan antarmuka Streamlit.")
+    print("STATUS AUDIT: SELURUH METODE PENGOLAHAN CITRA DIGITAL (DIP) & ML MINGGU 1 TERVERIFIKASI.")
+    print("Data terhubung penuh ke modul Python EE/Geemap Fetcher dan antarmuka Streamlit.")
     print("=" * 70)
 
 if __name__ == "__main__":

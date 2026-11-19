@@ -12,7 +12,7 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 RAW_DATA_DIR = os.path.join(DATA_DIR, "raw")
 PROCESSED_DATA_DIR = os.path.join(DATA_DIR, "processed")
 
-# Geometri & Koordinat Presisi Digitasi Manual
+# Geometri & Koordinat Presisi Digitasi Manual: AWS PDX Bombing Campus
 CAMPUS_COORDS = [
     [-119.64171195208215, 45.81800973804475],
     [-119.63429296194695, 45.8180321700963],
@@ -71,23 +71,110 @@ BUILDINGS_MULTIPOLYGON = [
     ]
 ]
 
-STUDY_AREA = {
-    "campus_name": "AWS PDX Bombing Campus (PDX-178)",
-    "location": "Boardman, Morrow County, Oregon",
-    "campus_centroid": [-119.6334, 45.8194],
-    "control_pair_centroid": [-119.6975, 45.8361],
-    "campus_bounds": CAMPUS_COORDS,
-    "campus_ha": 38.14,
-    "buildings_ha": 13.27,
-    "building_ratio_pct": 34.80,
-    "buffer_zones_m": {
-        "zone_campus": 0,
-        "zone_1": 500,
-        "zone_2": 1000,
-        "zone_3": 2000
+# Geometri & Koordinat Presisi Digitasi Manual: H5 Quincy II
+CAMPUS_H5_COORDS = [
+    [-119.82651628939323, 47.24827861001804],
+    [-119.82653774706534, 47.246902109174705],
+    [-119.82416667429618, 47.24692395867382],
+    [-119.82416667429618, 47.24835143975411],
+    [-119.82651628939323, 47.24827861001804]
+]
+
+GEDUNG_H5_POLYGONS = [
+    # Gedung 0
+    [
+        [-119.82643067612527, 47.24811203106517],
+        [-119.82642531170724, 47.24723806367303],
+        [-119.82614636196969, 47.24725262991442],
+        [-119.82617318405984, 47.24813388006522],
+        [-119.82643067612527, 47.24811203106517]
+    ],
+    # Gedung 1
+    [
+        [-119.82614636196969, 47.24813023856584],
+        [-119.8261302687156,  47.24725262991442],
+        [-119.82581913246987, 47.24725262991442],
+        [-119.8258244968879,  47.248126597066204],
+        [-119.82614636196969, 47.24813023856584]
+    ],
+    # Gedung 2
+    [
+        [-119.8257869459617,  47.24811203106517],
+        [-119.82576548828958, 47.24724534679423],
+        [-119.82548653855203, 47.24725262991442],
+        [-119.8255187250602,  47.24813388006522],
+        [-119.8257869459617,  47.24811203106517]
+    ],
+    # Gedung 3
+    [
+        [-119.82548653855203, 47.24813388006522],
+        [-119.825481174134,   47.24723442211206],
+        [-119.82519149556039, 47.247241705233776],
+        [-119.82515930905221, 47.24813023856584],
+        [-119.82548653855203, 47.24813388006522]
+    ],
+    # Gedung 4
+    [
+        [-119.82513785138009, 47.24818486103025],
+        [-119.82512712254403, 47.2469685874852],
+        [-119.82451557888864, 47.246979512222175],
+        [-119.8245263077247,  47.248206710000275],
+        [-119.82513785138009, 47.24818486103025]
+    ],
+    # Gedung 5
+    [
+        [-119.82613848307184, 47.247253950994384],
+        [-119.825805889154,   47.24722846007],
+        [-119.82582198240809, 47.24812063512454],
+        [-119.82615457632593, 47.248138842622275],
+        [-119.82613848307184, 47.247253950994384]
+    ]
+]
+
+# Konfigurasi Multi-Site Lokasi Pusat Data
+SITES = {
+    "aws_pdx": {
+        "site_id": "aws_pdx",
+        "campus_name": "AWS PDX Bombing Campus (PDX-178)",
+        "location": "Boardman, Morrow County, Oregon",
+        "campus_centroid": [-119.6334, 45.8194],
+        "control_pair_centroid": [-119.6975, 45.8361],
+        "campus_bounds": CAMPUS_COORDS,
+        "buildings_multipolygon": BUILDINGS_MULTIPOLYGON,
+        "campus_ha": 38.14,
+        "buildings_ha": 13.27,
+        "building_ratio_pct": 34.80,
+        "buffer_zones_m": {
+            "zone_campus": 0,
+            "zone_1": 500,
+            "zone_2": 1000,
+            "zone_3": 2000
+        },
+        "regional_ref_ring_km": [5.0, 12.0]
     },
-    "regional_ref_ring_km": [5.0, 12.0]
+    "h5_quincy2": {
+        "site_id": "h5_quincy2",
+        "campus_name": "H5 Quincy II",
+        "location": "Quincy, Grant County, Washington",
+        "campus_centroid": [-119.8253, 47.2476],
+        "control_pair_centroid": [-119.8550, 47.2340],
+        "campus_bounds": CAMPUS_H5_COORDS,
+        "buildings_multipolygon": GEDUNG_H5_POLYGONS,
+        "campus_ha": 2.93,
+        "buildings_ha": 1.35,
+        "building_ratio_pct": 46.08,
+        "buffer_zones_m": {
+            "zone_campus": 0,
+            "zone_1": 500,
+            "zone_2": 1000,
+            "zone_3": 2000
+        },
+        "regional_ref_ring_km": [5.0, 12.0]
+    }
 }
+
+# Default site untuk kompatibilitas ke belakang
+STUDY_AREA = SITES["aws_pdx"]
 
 # Periode Observasi & Jendela Musim
 YEARS = list(range(2013, 2027))

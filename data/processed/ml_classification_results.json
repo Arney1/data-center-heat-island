@@ -1,0 +1,243 @@
+{
+  "status": "success",
+  "n_train_samples": 900,
+  "n_test_samples": 300,
+  "features_used": [
+    "SR_B2",
+    "SR_B3",
+    "SR_B4",
+    "SR_B5",
+    "SR_B6",
+    "SR_B7",
+    "NDVI",
+    "NDBI",
+    "MNDWI",
+    "Albedo",
+    "LST",
+    "EMIS"
+  ],
+  "models_comparison": {
+    "Random Forest": {
+      "overall_accuracy": 1.0,
+      "cohen_kappa": 1.0,
+      "confusion_matrix": [
+        [
+          98,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          56,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          125,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          21
+        ]
+      ],
+      "labels": [
+        "Vegetation / Agriculture",
+        "Built-up / Data Center",
+        "Bare Soil / Fallow",
+        "Water / Retention Pond"
+      ]
+    },
+    "Support Vector Machine": {
+      "overall_accuracy": 1.0,
+      "cohen_kappa": 1.0,
+      "confusion_matrix": [
+        [
+          98,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          56,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          125,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          21
+        ]
+      ],
+      "labels": [
+        "Vegetation / Agriculture",
+        "Built-up / Data Center",
+        "Bare Soil / Fallow",
+        "Water / Retention Pond"
+      ]
+    }
+  },
+  "per_class_performance": {
+    "Vegetation / Agriculture": {
+      "class_id": 1,
+      "rf_users_accuracy_precision": 1.0,
+      "rf_producers_accuracy_recall": 1.0,
+      "rf_f1_score": 1.0,
+      "svm_users_accuracy_precision": 1.0,
+      "svm_producers_accuracy_recall": 1.0,
+      "svm_f1_score": 1.0
+    },
+    "Built-up / Data Center": {
+      "class_id": 2,
+      "rf_users_accuracy_precision": 1.0,
+      "rf_producers_accuracy_recall": 1.0,
+      "rf_f1_score": 1.0,
+      "svm_users_accuracy_precision": 1.0,
+      "svm_producers_accuracy_recall": 1.0,
+      "svm_f1_score": 1.0
+    },
+    "Bare Soil / Fallow": {
+      "class_id": 3,
+      "rf_users_accuracy_precision": 1.0,
+      "rf_producers_accuracy_recall": 1.0,
+      "rf_f1_score": 1.0,
+      "svm_users_accuracy_precision": 1.0,
+      "svm_producers_accuracy_recall": 1.0,
+      "svm_f1_score": 1.0
+    },
+    "Water / Retention Pond": {
+      "class_id": 4,
+      "rf_users_accuracy_precision": 1.0,
+      "rf_producers_accuracy_recall": 1.0,
+      "rf_f1_score": 1.0,
+      "svm_users_accuracy_precision": 1.0,
+      "svm_producers_accuracy_recall": 1.0,
+      "svm_f1_score": 1.0
+    }
+  },
+  "gini_feature_importance": [
+    {
+      "feature": "LST",
+      "importance": 0.2187
+    },
+    {
+      "feature": "MNDWI",
+      "importance": 0.121
+    },
+    {
+      "feature": "SR_B4",
+      "importance": 0.1145
+    },
+    {
+      "feature": "SR_B5",
+      "importance": 0.1097
+    },
+    {
+      "feature": "SR_B7",
+      "importance": 0.0826
+    },
+    {
+      "feature": "NDVI",
+      "importance": 0.0822
+    },
+    {
+      "feature": "EMIS",
+      "importance": 0.0784
+    },
+    {
+      "feature": "NDBI",
+      "importance": 0.0547
+    },
+    {
+      "feature": "SR_B6",
+      "importance": 0.0454
+    },
+    {
+      "feature": "Albedo",
+      "importance": 0.0436
+    },
+    {
+      "feature": "SR_B2",
+      "importance": 0.0384
+    },
+    {
+      "feature": "SR_B3",
+      "importance": 0.011
+    }
+  ],
+  "permutation_feature_importance": [
+    {
+      "feature": "LST",
+      "mean_importance": 0.2453,
+      "std": 0.0169
+    },
+    {
+      "feature": "SR_B4",
+      "mean_importance": 0.002,
+      "std": 0.0016
+    },
+    {
+      "feature": "Albedo",
+      "mean_importance": 0.0,
+      "std": 0.0
+    },
+    {
+      "feature": "EMIS",
+      "mean_importance": 0.0,
+      "std": 0.0
+    },
+    {
+      "feature": "MNDWI",
+      "mean_importance": 0.0,
+      "std": 0.0
+    },
+    {
+      "feature": "NDBI",
+      "mean_importance": 0.0,
+      "std": 0.0
+    },
+    {
+      "feature": "SR_B7",
+      "mean_importance": 0.0,
+      "std": 0.0
+    },
+    {
+      "feature": "NDVI",
+      "mean_importance": 0.0,
+      "std": 0.0
+    },
+    {
+      "feature": "SR_B6",
+      "mean_importance": 0.0,
+      "std": 0.0
+    },
+    {
+      "feature": "SR_B5",
+      "mean_importance": 0.0,
+      "std": 0.0
+    },
+    {
+      "feature": "SR_B3",
+      "mean_importance": 0.0,
+      "std": 0.0
+    },
+    {
+      "feature": "SR_B2",
+      "mean_importance": 0.0,
+      "std": 0.0
+    }
+  ]
+}
