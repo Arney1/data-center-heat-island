@@ -18,7 +18,8 @@ from dip_pipeline.timeseries import load_zonal_timeseries
 
 DATA_DIR = BASE_DIR / "data" / "processed"
 st.set_page_config(page_title="Data Center LST & Land Cover", page_icon="🛰️", layout="wide")
-SITE_LABELS = {"aws_pdx": "AWS Boardman", "h5_quincy2": "H5 Quincy II"}
+SITE_LABELS = {"aws_pdx": "AWS Boardman", "h5_quincy2": "H5 Quincy II",
+               "meta_prineville": "Meta Prineville"}
 site_id = st.sidebar.selectbox("Study site", list(SITE_LABELS), format_func=SITE_LABELS.get)
 site = SITES[site_id]
 page = st.sidebar.radio("Explore", ["Overview", "Study area", "LST & spectral time series",
@@ -34,8 +35,10 @@ def read_json(path):
 
 def read_timeseries():
     uploaded = st.sidebar.file_uploader("Upload this site's GEE time-series CSV", type="csv", key=f"ts_{site_id}")
+    #filename = ("zonal_lst_timeseries_2013_2026.csv" if site_id == "aws_pdx"
+    #            else "h5_quincy2_timeseries.csv")
     filename = ("zonal_lst_timeseries_2013_2026.csv" if site_id == "aws_pdx"
-                else "h5_quincy2_timeseries.csv")
+                else f"{site_id}_timeseries.csv")
     source = uploaded if uploaded is not None else DATA_DIR / filename
     if uploaded is None and not source.exists():
         return None
@@ -45,6 +48,33 @@ def read_timeseries():
         st.error(f"The time-series CSV could not be loaded: {error}")
         return None
 
+SITE_NOTES = {
+    "meta_prineville": [
+        "LSTanom uses an irrigated-valley reference (WorldCover class 40) that is far cooler than the high-desert site, so anomalies are large in every zone. Use LST as the primary variable.",
+        "The 0–500 m to 1–2 km rings also contain other buildings (e.g. other data-center facilities) and different land cover (river, golf course, town). Ring gradients are not an estimate of a campus effect.",
+    ],
+}
+
+def read_availability():
+    path = DATA_DIR / f"{site_id}_availability.csv"
+    if not path.exists():
+        return None
+    try:
+        frame = pd.read_csv(path)
+        needed = ["tahun", "total_scene", "scene_bersih_70"]
+        missing = [column for column in needed if column not in frame.columns]
+        if missing:
+            raise ValueError(f"missing columns: {missing}")
+        if "site_id" in frame.columns and not frame["site_id"].eq(site_id).all():
+            raise ValueError(f"site_id must be {site_id}")
+        for column in needed:
+            frame[column] = pd.to_numeric(frame[column], errors="raise")
+        if frame["tahun"].duplicated().any():
+            raise ValueError("duplicate years")
+        return frame.sort_values("tahun")
+    except (ValueError, OSError, UnicodeError) as error:
+        st.error(f"The availability CSV could not be loaded: {error}")
+        return None
 
 def site_map():
     lon, lat = site["campus_centroid"]
@@ -72,7 +102,7 @@ def show_scores(scores):
 
 
 if page == "Overview":
-    st.write("Explore surface temperature and land cover at two data-center study sites using the same navigation.")
+    st.write("Explore surface temperature and land cover at the configured data-center study sites using the same navigation.")
     st.write(f"**Location:** {site['location']}")
     st.write(f"**Digitized roof polygons:** {len(site['buildings_multipolygon'])}")
     st.caption("Roof annotations can overlap; annotation count is not a verified count of data halls. See the geometry audit for measured polygon areas; these do not verify facility parcels.")
@@ -96,6 +126,8 @@ elif page == "LST & spectral time series":
         if site_id == "aws_pdx":
             st.caption("Boardman data are stored legacy results; image-level provenance has not been revalidated.")
         st.caption("An uploaded CSV without site_id is assigned to the selected site. Check its origin before uploading.")
+        for note in SITE_NOTES.get(site_id, []):
+            st.warning(note)
         zones = frame.zona.unique().tolist()
         selected = st.multiselect("Zones", zones, default=["0_tapak_penuh"] if "0_tapak_penuh" in zones else zones[:1])
         variable = st.selectbox("Variable", ["LST", "LSTanom", "NDVI", "NDBI", "EMIS"])
@@ -108,6 +140,12 @@ elif page == "LST & spectral time series":
             st.dataframe(view, hide_index=True, width="stretch")
             st.download_button("Download selected time series", view.to_csv(index=False),
                                file_name=f"{site_id}_timeseries.csv", mime="text/csv")
+        availability = read_availability()
+        if availability is not None:
+            with st.expander("Image availability per year (composite quality)"):
+                st.bar_chart(availability.set_index("tahun")[["total_scene", "scene_bersih_70"]])
+                st.caption("Clean scene = at least 70% valid pixels over the campus. Years with few clean scenes give weak median composites; compare years with very different scene counts cautiously.")
+                st.dataframe(availability, hide_index=True, width="stretch")
 
 elif page == "Supervised classification":
     st.write("Classes: vegetation/agriculture, built-up land, bare soil/fallow, and water.")
@@ -192,7 +230,8 @@ elif page == "Supervised classification":
 elif page == "Saved DIP artifacts":
     st.warning("Saved DIP artifacts are legacy outputs, not a fresh image audit. Chronology, control suitability, and image counts are not verified by loading these files.")
     if site_id != "aws_pdx":
-        st.info("No Quincy built-area, DiD, gradient, or IKTL artifacts are available. Boardman artifacts are never substituted.")
+        #st.info("No Quincy built-area, DiD, gradient, or IKTL artifacts are available. Boardman artifacts are never substituted.")
+        st.info(f"No {SITE_LABELS[site_id]} built-area, DiD, gradient, or IKTL artifacts are available. Boardman artifacts are never substituted.")
     else:
         metrics_path = DATA_DIR / "spatial_metrics_summary.json"
         built_path = DATA_DIR / "builtup_expansion_trajectory.csv"

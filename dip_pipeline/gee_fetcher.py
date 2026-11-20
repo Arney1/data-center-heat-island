@@ -76,7 +76,8 @@ class GEEDataFetcher:
         self.campus_coords = self.site_info["campus_bounds"]
         self.buildings_polygons = self.site_info["buildings_multipolygon"]
         self.campus_centroid = self.site_info["campus_centroid"]
-        self.control_pair_centroid = self.site_info["control_pair_centroid"]
+        #self.control_pair_centroid = self.site_info["control_pair_centroid"]
+        self.control_pair_centroid = self.site_info.get("control_pair_centroid")
 
         self.project_id = project_id or os.environ.get("EE_PROJECT") or os.environ.get("GOOGLE_CLOUD_PROJECT")
         self.is_authenticated = False
@@ -143,7 +144,11 @@ class GEEDataFetcher:
             self.ref_geom = self.campus_geom.buffer(12000).difference(self.campus_geom.buffer(5000))
 
         # 5. Kontrol Pembanding Berpasangan
-        self.control_geom = ee.Geometry.Point(self.control_pair_centroid).buffer(400)
+        #self.control_geom = ee.Geometry.Point(self.control_pair_centroid).buffer(400)
+        self.control_geom = (
+            ee.Geometry.Point(self.control_pair_centroid).buffer(400)
+            if self.control_pair_centroid else None
+        )
 
         # FeatureCollection Zona
         self.zona_fc = ee.FeatureCollection([
@@ -563,14 +568,18 @@ class GEEDataFetcher:
         center_lat, center_lon = self.campus_centroid[1], self.campus_centroid[0]
 
         if GEEMAP_AVAILABLE and self.is_authenticated and ee is not None:
-            Map = geemap.Map(center=[center_lat, center_lon], zoom=15, height=f"{height}px")
+            Map = geemap.Map(center=[center_lat, center_lon], zoom=self.site_info.get("map_zoom", 15), height=f"{height}px")
             Map.add_basemap("SATELLITE")
 
             # Tambahkan geometri
             Map.add_layer(self.campus_geom, {"color": "cyan", "width": 2}, f"Tapak Kampus ({self.site_name})")
             Map.add_layer(self.buildings_geom, {"color": "red", "fillColor": "red"}, f"Gedung Data Halls ({self.site_name})")
             Map.add_layer(self.zona_fc, {"color": "yellow", "width": 1}, "Cincin Buffer 0-2km")
-            Map.add_layer(self.control_geom, {"color": "magenta", "width": 2}, "Kontrol Industri Logistik (DiD)")
+            #Map.add_layer(self.control_geom, {"color": "magenta", "width": 2}, "Kontrol Industri Logistik (DiD)")
+
+            if self.control_geom is not None:
+                Map.add_layer(self.control_geom, {"color": "magenta", "width": 2}, "Kontrol Industri Logistik (DiD)")
+            
             return Map
         else:
             # Fallback menggunakan Folium langsung bila geemap/EE belum terinisialisasi
@@ -578,7 +587,8 @@ class GEEDataFetcher:
 
             fmap = folium.Map(
                 location=[center_lat, center_lon],
-                zoom_start=15,
+                #zoom_start=15,
+                zoom_start=self.site_info.get("map_zoom", 15),
                 tiles="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
                 attr="Google Hybrid"
             )
@@ -603,7 +613,8 @@ class GEEDataFetcher:
                     fill=True,
                     fill_color="red",
                     fill_opacity=0.45,
-                    tooltip=f"Data Hall {i+1} (Luas Total: {self.site_info['buildings_ha']} ha)"
+                    #tooltip=f"Data Hall {i+1} (Luas Total: {self.site_info['buildings_ha']} ha)"
+                    tooltip=f"Poligon atap {i+1} (total atap: {self.site_info['buildings_ha']} ha)"
                 ).add_to(fmap)
 
             # Cincin buffer
@@ -637,11 +648,12 @@ class GEEDataFetcher:
                 tooltip="Buffer Zona 3: 1.0 km - 2.0 km"
             ).add_to(fmap)
 
-            # Titik kontrol pembanding
-            folium.Marker(
-                location=[self.control_pair_centroid[1], self.control_pair_centroid[0]],
-                icon=folium.Icon(color="purple", icon="industry", prefix="fa"),
-                tooltip=f"Kontrol Berpasangan Non-Pusat Data ({self.site_name})"
-            ).add_to(fmap)
+            # Titik kontrol pembanding (dilewati bila belum ada kontrol terverifikasi)
+            if self.control_pair_centroid:
+                folium.Marker(
+                    location=[self.control_pair_centroid[1], self.control_pair_centroid[0]],
+                    icon=folium.Icon(color="purple", icon="industry", prefix="fa"),
+                    tooltip=f"Kontrol Berpasangan Non-Pusat Data ({self.site_name})"
+                ).add_to(fmap)
 
             return fmap
