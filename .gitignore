@@ -21,3 +21,10 @@ credentials
 # Outputs & temporary files
 *.tmp
 temp/
+
+# Fitted models and large raster exports (recreate from documented inputs)
+*.joblib
+*.tif
+*.tiff
+.env
+.streamlit/secrets.toml

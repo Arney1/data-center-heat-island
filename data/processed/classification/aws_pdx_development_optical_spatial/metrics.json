@@ -1,0 +1,1700 @@
+{
+  "schema_version": 2,
+  "status": "completed",
+  "created_at": "2026-11-19T23:59:29.921092+00:00",
+  "claim_status": "development_only",
+  "data_sources": [
+    "unverified_legacy"
+  ],
+  "label_sources": [
+    "unverified_legacy"
+  ],
+  "site_ids": [
+    "aws_pdx"
+  ],
+  "n_samples": 1200,
+  "features_used": [
+    "SR_B2",
+    "SR_B3",
+    "SR_B4",
+    "SR_B5",
+    "SR_B6",
+    "SR_B7",
+    "NDVI",
+    "NDBI",
+    "MNDWI",
+    "Albedo"
+  ],
+  "validation": "spatial",
+  "test_site": null,
+  "n_folds": 5,
+  "block_size_m": 500,
+  "random_state": 42,
+  "n_evaluated_samples": 1200,
+  "dataset_sha256": "a9d2e16c2a150939f05abae991cfa37f1f0bd07929e9f34b575c023291591b1b",
+  "sklearn_version": "1.9.1",
+  "classification_scope": "land cover across each site's full AOI, not data-center identity",
+  "models_comparison": {
+    "Random Forest": {
+      "overall_accuracy": 0.9916666666666667,
+      "macro_f1": 0.9919095293708601,
+      "cohen_kappa": 0.9877314161626324,
+      "confusion_matrix": [
+        [
+          390,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          218,
+          6,
+          0
+        ],
+        [
+          0,
+          4,
+          498,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          84
+        ]
+      ],
+      "labels": [
+        "Vegetation / Agriculture",
+        "Built-up",
+        "Bare Soil / Fallow",
+        "Water"
+      ],
+      "per_class": [
+        {
+          "class_id": 1,
+          "class_name": "Vegetation / Agriculture",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 390
+        },
+        {
+          "class_id": 2,
+          "class_name": "Built-up",
+          "precision": 0.9819819819819819,
+          "recall": 0.9732142857142857,
+          "f1": 0.9775784753363229,
+          "support": 224
+        },
+        {
+          "class_id": 3,
+          "class_name": "Bare Soil / Fallow",
+          "precision": 0.9880952380952381,
+          "recall": 0.9920318725099602,
+          "f1": 0.9900596421471173,
+          "support": 502
+        },
+        {
+          "class_id": 4,
+          "class_name": "Water",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 84
+        }
+      ],
+      "fold_macro_f1_std": 0.00684986762245008
+    },
+    "Support Vector Machine": {
+      "overall_accuracy": 0.9925,
+      "macro_f1": 0.9918152793780999,
+      "cohen_kappa": 0.9889661034611699,
+      "confusion_matrix": [
+        [
+          390,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          221,
+          3,
+          0
+        ],
+        [
+          0,
+          5,
+          497,
+          0
+        ],
+        [
+          0,
+          0,
+          1,
+          83
+        ]
+      ],
+      "labels": [
+        "Vegetation / Agriculture",
+        "Built-up",
+        "Bare Soil / Fallow",
+        "Water"
+      ],
+      "per_class": [
+        {
+          "class_id": 1,
+          "class_name": "Vegetation / Agriculture",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 390
+        },
+        {
+          "class_id": 2,
+          "class_name": "Built-up",
+          "precision": 0.9778761061946902,
+          "recall": 0.9866071428571429,
+          "f1": 0.9822222222222222,
+          "support": 224
+        },
+        {
+          "class_id": 3,
+          "class_name": "Bare Soil / Fallow",
+          "precision": 0.9920159680638723,
+          "recall": 0.9900398406374502,
+          "f1": 0.9910269192422732,
+          "support": 502
+        },
+        {
+          "class_id": 4,
+          "class_name": "Water",
+          "precision": 1.0,
+          "recall": 0.9880952380952381,
+          "f1": 0.9940119760479041,
+          "support": 84
+        }
+      ],
+      "fold_macro_f1_std": 0.0026719249637529824
+    },
+    "Spectral threshold baseline": {
+      "overall_accuracy": 0.8325,
+      "macro_f1": 0.8607473847982751,
+      "cohen_kappa": 0.7632894522486521,
+      "confusion_matrix": [
+        [
+          369,
+          0,
+          21,
+          0
+        ],
+        [
+          0,
+          214,
+          10,
+          0
+        ],
+        [
+          11,
+          159,
+          332,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          84
+        ]
+      ],
+      "labels": [
+        "Vegetation / Agriculture",
+        "Built-up",
+        "Bare Soil / Fallow",
+        "Water"
+      ],
+      "per_class": [
+        {
+          "class_id": 1,
+          "class_name": "Vegetation / Agriculture",
+          "precision": 0.9710526315789474,
+          "recall": 0.9461538461538461,
+          "f1": 0.9584415584415584,
+          "support": 390
+        },
+        {
+          "class_id": 2,
+          "class_name": "Built-up",
+          "precision": 0.5737265415549598,
+          "recall": 0.9553571428571429,
+          "f1": 0.7169179229480737,
+          "support": 224
+        },
+        {
+          "class_id": 3,
+          "class_name": "Bare Soil / Fallow",
+          "precision": 0.9146005509641874,
+          "recall": 0.6613545816733067,
+          "f1": 0.7676300578034682,
+          "support": 502
+        },
+        {
+          "class_id": 4,
+          "class_name": "Water",
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "support": 84
+        }
+      ]
+    }
+  },
+  "per_site_performance": {
+    "aws_pdx": {
+      "Random Forest": {
+        "overall_accuracy": 0.9916666666666667,
+        "macro_f1": 0.9919095293708601,
+        "cohen_kappa": 0.9877314161626324,
+        "confusion_matrix": [
+          [
+            390,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            218,
+            6,
+            0
+          ],
+          [
+            0,
+            4,
+            498,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            84
+          ]
+        ],
+        "labels": [
+          "Vegetation / Agriculture",
+          "Built-up",
+          "Bare Soil / Fallow",
+          "Water"
+        ],
+        "per_class": [
+          {
+            "class_id": 1,
+            "class_name": "Vegetation / Agriculture",
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 390
+          },
+          {
+            "class_id": 2,
+            "class_name": "Built-up",
+            "precision": 0.9819819819819819,
+            "recall": 0.9732142857142857,
+            "f1": 0.9775784753363229,
+            "support": 224
+          },
+          {
+            "class_id": 3,
+            "class_name": "Bare Soil / Fallow",
+            "precision": 0.9880952380952381,
+            "recall": 0.9920318725099602,
+            "f1": 0.9900596421471173,
+            "support": 502
+          },
+          {
+            "class_id": 4,
+            "class_name": "Water",
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 84
+          }
+        ]
+      },
+      "Support Vector Machine": {
+        "overall_accuracy": 0.9925,
+        "macro_f1": 0.9918152793780999,
+        "cohen_kappa": 0.9889661034611699,
+        "confusion_matrix": [
+          [
+            390,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            221,
+            3,
+            0
+          ],
+          [
+            0,
+            5,
+            497,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            83
+          ]
+        ],
+        "labels": [
+          "Vegetation / Agriculture",
+          "Built-up",
+          "Bare Soil / Fallow",
+          "Water"
+        ],
+        "per_class": [
+          {
+            "class_id": 1,
+            "class_name": "Vegetation / Agriculture",
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 390
+          },
+          {
+            "class_id": 2,
+            "class_name": "Built-up",
+            "precision": 0.9778761061946902,
+            "recall": 0.9866071428571429,
+            "f1": 0.9822222222222222,
+            "support": 224
+          },
+          {
+            "class_id": 3,
+            "class_name": "Bare Soil / Fallow",
+            "precision": 0.9920159680638723,
+            "recall": 0.9900398406374502,
+            "f1": 0.9910269192422732,
+            "support": 502
+          },
+          {
+            "class_id": 4,
+            "class_name": "Water",
+            "precision": 1.0,
+            "recall": 0.9880952380952381,
+            "f1": 0.9940119760479041,
+            "support": 84
+          }
+        ]
+      }
+    }
+  },
+  "folds": [
+    {
+      "fold": 0,
+      "n_train": 960,
+      "n_test": 240,
+      "train_groups": [
+        "aws_pdx:-18330:10196",
+        "aws_pdx:-18330:10197",
+        "aws_pdx:-18330:10198",
+        "aws_pdx:-18330:10199",
+        "aws_pdx:-18330:10200",
+        "aws_pdx:-18330:10202",
+        "aws_pdx:-18330:10203",
+        "aws_pdx:-18330:10204",
+        "aws_pdx:-18331:10197",
+        "aws_pdx:-18331:10198",
+        "aws_pdx:-18331:10199",
+        "aws_pdx:-18331:10201",
+        "aws_pdx:-18331:10202",
+        "aws_pdx:-18331:10204",
+        "aws_pdx:-18331:10205",
+        "aws_pdx:-18332:10198",
+        "aws_pdx:-18332:10199",
+        "aws_pdx:-18332:10200",
+        "aws_pdx:-18332:10202",
+        "aws_pdx:-18332:10203",
+        "aws_pdx:-18332:10204",
+        "aws_pdx:-18332:10205",
+        "aws_pdx:-18333:10196",
+        "aws_pdx:-18333:10198",
+        "aws_pdx:-18333:10199",
+        "aws_pdx:-18333:10200",
+        "aws_pdx:-18333:10201",
+        "aws_pdx:-18333:10202",
+        "aws_pdx:-18333:10203",
+        "aws_pdx:-18333:10204",
+        "aws_pdx:-18333:10205",
+        "aws_pdx:-18334:10196",
+        "aws_pdx:-18334:10197",
+        "aws_pdx:-18334:10198",
+        "aws_pdx:-18334:10200",
+        "aws_pdx:-18334:10203",
+        "aws_pdx:-18334:10204",
+        "aws_pdx:-18334:10205",
+        "aws_pdx:-18335:10196",
+        "aws_pdx:-18335:10197",
+        "aws_pdx:-18335:10198",
+        "aws_pdx:-18335:10199",
+        "aws_pdx:-18335:10200",
+        "aws_pdx:-18335:10201",
+        "aws_pdx:-18335:10202",
+        "aws_pdx:-18335:10203",
+        "aws_pdx:-18335:10204",
+        "aws_pdx:-18335:10205",
+        "aws_pdx:-18336:10197",
+        "aws_pdx:-18336:10198",
+        "aws_pdx:-18336:10199",
+        "aws_pdx:-18336:10200",
+        "aws_pdx:-18336:10201",
+        "aws_pdx:-18336:10202",
+        "aws_pdx:-18336:10203",
+        "aws_pdx:-18336:10204",
+        "aws_pdx:-18336:10205",
+        "aws_pdx:-18337:10197",
+        "aws_pdx:-18337:10198",
+        "aws_pdx:-18337:10199",
+        "aws_pdx:-18337:10200",
+        "aws_pdx:-18337:10201",
+        "aws_pdx:-18337:10202",
+        "aws_pdx:-18337:10205",
+        "aws_pdx:-18338:10196",
+        "aws_pdx:-18338:10197",
+        "aws_pdx:-18338:10200",
+        "aws_pdx:-18338:10201",
+        "aws_pdx:-18338:10202",
+        "aws_pdx:-18338:10203",
+        "aws_pdx:-18338:10204",
+        "aws_pdx:-18339:10197",
+        "aws_pdx:-18339:10198",
+        "aws_pdx:-18339:10199",
+        "aws_pdx:-18339:10200",
+        "aws_pdx:-18339:10201",
+        "aws_pdx:-18339:10202"
+      ],
+      "test_groups": [
+        "aws_pdx:-18330:10201",
+        "aws_pdx:-18330:10205",
+        "aws_pdx:-18331:10200",
+        "aws_pdx:-18331:10203",
+        "aws_pdx:-18332:10197",
+        "aws_pdx:-18332:10201",
+        "aws_pdx:-18333:10197",
+        "aws_pdx:-18334:10199",
+        "aws_pdx:-18334:10201",
+        "aws_pdx:-18334:10202",
+        "aws_pdx:-18337:10196",
+        "aws_pdx:-18337:10203",
+        "aws_pdx:-18337:10204",
+        "aws_pdx:-18338:10198",
+        "aws_pdx:-18338:10199",
+        "aws_pdx:-18338:10205",
+        "aws_pdx:-18339:10196",
+        "aws_pdx:-18339:10203",
+        "aws_pdx:-18339:10204",
+        "aws_pdx:-18339:10205"
+      ],
+      "models": {
+        "Random Forest": {
+          "overall_accuracy": 0.9791666666666666,
+          "macro_f1": 0.9795346229324362,
+          "cohen_kappa": 0.969221298861188,
+          "confusion_matrix": [
+            [
+              77,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              41,
+              4,
+              0
+            ],
+            [
+              0,
+              1,
+              100,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              17
+            ]
+          ],
+          "labels": [
+            "Vegetation / Agriculture",
+            "Built-up",
+            "Bare Soil / Fallow",
+            "Water"
+          ],
+          "per_class": [
+            {
+              "class_id": 1,
+              "class_name": "Vegetation / Agriculture",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 77
+            },
+            {
+              "class_id": 2,
+              "class_name": "Built-up",
+              "precision": 0.9761904761904762,
+              "recall": 0.9111111111111111,
+              "f1": 0.9425287356321839,
+              "support": 45
+            },
+            {
+              "class_id": 3,
+              "class_name": "Bare Soil / Fallow",
+              "precision": 0.9615384615384616,
+              "recall": 0.9900990099009901,
+              "f1": 0.975609756097561,
+              "support": 101
+            },
+            {
+              "class_id": 4,
+              "class_name": "Water",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 17
+            }
+          ]
+        },
+        "Support Vector Machine": {
+          "overall_accuracy": 0.9916666666666667,
+          "macro_f1": 0.991867201426025,
+          "cohen_kappa": 0.987706177645733,
+          "confusion_matrix": [
+            [
+              77,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              43,
+              2,
+              0
+            ],
+            [
+              0,
+              0,
+              101,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              17
+            ]
+          ],
+          "labels": [
+            "Vegetation / Agriculture",
+            "Built-up",
+            "Bare Soil / Fallow",
+            "Water"
+          ],
+          "per_class": [
+            {
+              "class_id": 1,
+              "class_name": "Vegetation / Agriculture",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 77
+            },
+            {
+              "class_id": 2,
+              "class_name": "Built-up",
+              "precision": 1.0,
+              "recall": 0.9555555555555556,
+              "f1": 0.9772727272727273,
+              "support": 45
+            },
+            {
+              "class_id": 3,
+              "class_name": "Bare Soil / Fallow",
+              "precision": 0.9805825242718447,
+              "recall": 1.0,
+              "f1": 0.9901960784313726,
+              "support": 101
+            },
+            {
+              "class_id": 4,
+              "class_name": "Water",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 17
+            }
+          ]
+        }
+      }
+    },
+    {
+      "fold": 1,
+      "n_train": 958,
+      "n_test": 242,
+      "train_groups": [
+        "aws_pdx:-18330:10198",
+        "aws_pdx:-18330:10199",
+        "aws_pdx:-18330:10200",
+        "aws_pdx:-18330:10201",
+        "aws_pdx:-18330:10202",
+        "aws_pdx:-18330:10203",
+        "aws_pdx:-18330:10205",
+        "aws_pdx:-18331:10197",
+        "aws_pdx:-18331:10198",
+        "aws_pdx:-18331:10199",
+        "aws_pdx:-18331:10200",
+        "aws_pdx:-18331:10201",
+        "aws_pdx:-18331:10202",
+        "aws_pdx:-18331:10203",
+        "aws_pdx:-18331:10204",
+        "aws_pdx:-18332:10197",
+        "aws_pdx:-18332:10198",
+        "aws_pdx:-18332:10199",
+        "aws_pdx:-18332:10200",
+        "aws_pdx:-18332:10201",
+        "aws_pdx:-18332:10204",
+        "aws_pdx:-18332:10205",
+        "aws_pdx:-18333:10196",
+        "aws_pdx:-18333:10197",
+        "aws_pdx:-18333:10198",
+        "aws_pdx:-18333:10199",
+        "aws_pdx:-18333:10200",
+        "aws_pdx:-18333:10201",
+        "aws_pdx:-18333:10203",
+        "aws_pdx:-18333:10204",
+        "aws_pdx:-18333:10205",
+        "aws_pdx:-18334:10196",
+        "aws_pdx:-18334:10197",
+        "aws_pdx:-18334:10198",
+        "aws_pdx:-18334:10199",
+        "aws_pdx:-18334:10201",
+        "aws_pdx:-18334:10202",
+        "aws_pdx:-18334:10203",
+        "aws_pdx:-18335:10196",
+        "aws_pdx:-18335:10197",
+        "aws_pdx:-18335:10198",
+        "aws_pdx:-18335:10199",
+        "aws_pdx:-18335:10200",
+        "aws_pdx:-18335:10201",
+        "aws_pdx:-18335:10202",
+        "aws_pdx:-18335:10203",
+        "aws_pdx:-18335:10204",
+        "aws_pdx:-18335:10205",
+        "aws_pdx:-18336:10197",
+        "aws_pdx:-18336:10198",
+        "aws_pdx:-18336:10199",
+        "aws_pdx:-18336:10200",
+        "aws_pdx:-18336:10203",
+        "aws_pdx:-18336:10204",
+        "aws_pdx:-18336:10205",
+        "aws_pdx:-18337:10196",
+        "aws_pdx:-18337:10197",
+        "aws_pdx:-18337:10199",
+        "aws_pdx:-18337:10201",
+        "aws_pdx:-18337:10202",
+        "aws_pdx:-18337:10203",
+        "aws_pdx:-18337:10204",
+        "aws_pdx:-18338:10196",
+        "aws_pdx:-18338:10197",
+        "aws_pdx:-18338:10198",
+        "aws_pdx:-18338:10199",
+        "aws_pdx:-18338:10200",
+        "aws_pdx:-18338:10201",
+        "aws_pdx:-18338:10202",
+        "aws_pdx:-18338:10203",
+        "aws_pdx:-18338:10205",
+        "aws_pdx:-18339:10196",
+        "aws_pdx:-18339:10199",
+        "aws_pdx:-18339:10201",
+        "aws_pdx:-18339:10202",
+        "aws_pdx:-18339:10203",
+        "aws_pdx:-18339:10204",
+        "aws_pdx:-18339:10205"
+      ],
+      "test_groups": [
+        "aws_pdx:-18330:10196",
+        "aws_pdx:-18330:10197",
+        "aws_pdx:-18330:10204",
+        "aws_pdx:-18331:10205",
+        "aws_pdx:-18332:10202",
+        "aws_pdx:-18332:10203",
+        "aws_pdx:-18333:10202",
+        "aws_pdx:-18334:10200",
+        "aws_pdx:-18334:10204",
+        "aws_pdx:-18334:10205",
+        "aws_pdx:-18336:10201",
+        "aws_pdx:-18336:10202",
+        "aws_pdx:-18337:10198",
+        "aws_pdx:-18337:10200",
+        "aws_pdx:-18337:10205",
+        "aws_pdx:-18338:10204",
+        "aws_pdx:-18339:10197",
+        "aws_pdx:-18339:10198",
+        "aws_pdx:-18339:10200"
+      ],
+      "models": {
+        "Random Forest": {
+          "overall_accuracy": 0.9917355371900827,
+          "macro_f1": 0.9920405982905983,
+          "cohen_kappa": 0.9877586119682331,
+          "confusion_matrix": [
+            [
+              77,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              44,
+              1,
+              0
+            ],
+            [
+              0,
+              1,
+              103,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              16
+            ]
+          ],
+          "labels": [
+            "Vegetation / Agriculture",
+            "Built-up",
+            "Bare Soil / Fallow",
+            "Water"
+          ],
+          "per_class": [
+            {
+              "class_id": 1,
+              "class_name": "Vegetation / Agriculture",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 77
+            },
+            {
+              "class_id": 2,
+              "class_name": "Built-up",
+              "precision": 0.9777777777777777,
+              "recall": 0.9777777777777777,
+              "f1": 0.9777777777777777,
+              "support": 45
+            },
+            {
+              "class_id": 3,
+              "class_name": "Bare Soil / Fallow",
+              "precision": 0.9903846153846154,
+              "recall": 0.9903846153846154,
+              "f1": 0.9903846153846154,
+              "support": 104
+            },
+            {
+              "class_id": 4,
+              "class_name": "Water",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 16
+            }
+          ]
+        },
+        "Support Vector Machine": {
+          "overall_accuracy": 0.9917355371900827,
+          "macro_f1": 0.9921380329252849,
+          "cohen_kappa": 0.9877950373209603,
+          "confusion_matrix": [
+            [
+              77,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              45,
+              0,
+              0
+            ],
+            [
+              0,
+              2,
+              102,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              16
+            ]
+          ],
+          "labels": [
+            "Vegetation / Agriculture",
+            "Built-up",
+            "Bare Soil / Fallow",
+            "Water"
+          ],
+          "per_class": [
+            {
+              "class_id": 1,
+              "class_name": "Vegetation / Agriculture",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 77
+            },
+            {
+              "class_id": 2,
+              "class_name": "Built-up",
+              "precision": 0.9574468085106383,
+              "recall": 1.0,
+              "f1": 0.9782608695652174,
+              "support": 45
+            },
+            {
+              "class_id": 3,
+              "class_name": "Bare Soil / Fallow",
+              "precision": 1.0,
+              "recall": 0.9807692307692307,
+              "f1": 0.9902912621359223,
+              "support": 104
+            },
+            {
+              "class_id": 4,
+              "class_name": "Water",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 16
+            }
+          ]
+        }
+      }
+    },
+    {
+      "fold": 2,
+      "n_train": 963,
+      "n_test": 237,
+      "train_groups": [
+        "aws_pdx:-18330:10196",
+        "aws_pdx:-18330:10197",
+        "aws_pdx:-18330:10199",
+        "aws_pdx:-18330:10200",
+        "aws_pdx:-18330:10201",
+        "aws_pdx:-18330:10202",
+        "aws_pdx:-18330:10203",
+        "aws_pdx:-18330:10204",
+        "aws_pdx:-18330:10205",
+        "aws_pdx:-18331:10197",
+        "aws_pdx:-18331:10199",
+        "aws_pdx:-18331:10200",
+        "aws_pdx:-18331:10201",
+        "aws_pdx:-18331:10202",
+        "aws_pdx:-18331:10203",
+        "aws_pdx:-18331:10205",
+        "aws_pdx:-18332:10197",
+        "aws_pdx:-18332:10200",
+        "aws_pdx:-18332:10201",
+        "aws_pdx:-18332:10202",
+        "aws_pdx:-18332:10203",
+        "aws_pdx:-18332:10205",
+        "aws_pdx:-18333:10197",
+        "aws_pdx:-18333:10198",
+        "aws_pdx:-18333:10199",
+        "aws_pdx:-18333:10200",
+        "aws_pdx:-18333:10201",
+        "aws_pdx:-18333:10202",
+        "aws_pdx:-18333:10203",
+        "aws_pdx:-18333:10204",
+        "aws_pdx:-18334:10198",
+        "aws_pdx:-18334:10199",
+        "aws_pdx:-18334:10200",
+        "aws_pdx:-18334:10201",
+        "aws_pdx:-18334:10202",
+        "aws_pdx:-18334:10203",
+        "aws_pdx:-18334:10204",
+        "aws_pdx:-18334:10205",
+        "aws_pdx:-18335:10197",
+        "aws_pdx:-18335:10199",
+        "aws_pdx:-18335:10200",
+        "aws_pdx:-18335:10202",
+        "aws_pdx:-18335:10203",
+        "aws_pdx:-18336:10197",
+        "aws_pdx:-18336:10199",
+        "aws_pdx:-18336:10201",
+        "aws_pdx:-18336:10202",
+        "aws_pdx:-18336:10203",
+        "aws_pdx:-18336:10204",
+        "aws_pdx:-18336:10205",
+        "aws_pdx:-18337:10196",
+        "aws_pdx:-18337:10197",
+        "aws_pdx:-18337:10198",
+        "aws_pdx:-18337:10200",
+        "aws_pdx:-18337:10203",
+        "aws_pdx:-18337:10204",
+        "aws_pdx:-18337:10205",
+        "aws_pdx:-18338:10196",
+        "aws_pdx:-18338:10198",
+        "aws_pdx:-18338:10199",
+        "aws_pdx:-18338:10200",
+        "aws_pdx:-18338:10201",
+        "aws_pdx:-18338:10203",
+        "aws_pdx:-18338:10204",
+        "aws_pdx:-18338:10205",
+        "aws_pdx:-18339:10196",
+        "aws_pdx:-18339:10197",
+        "aws_pdx:-18339:10198",
+        "aws_pdx:-18339:10199",
+        "aws_pdx:-18339:10200",
+        "aws_pdx:-18339:10201",
+        "aws_pdx:-18339:10202",
+        "aws_pdx:-18339:10203",
+        "aws_pdx:-18339:10204",
+        "aws_pdx:-18339:10205"
+      ],
+      "test_groups": [
+        "aws_pdx:-18330:10198",
+        "aws_pdx:-18331:10198",
+        "aws_pdx:-18331:10204",
+        "aws_pdx:-18332:10198",
+        "aws_pdx:-18332:10199",
+        "aws_pdx:-18332:10204",
+        "aws_pdx:-18333:10196",
+        "aws_pdx:-18333:10205",
+        "aws_pdx:-18334:10196",
+        "aws_pdx:-18334:10197",
+        "aws_pdx:-18335:10196",
+        "aws_pdx:-18335:10198",
+        "aws_pdx:-18335:10201",
+        "aws_pdx:-18335:10204",
+        "aws_pdx:-18335:10205",
+        "aws_pdx:-18336:10198",
+        "aws_pdx:-18336:10200",
+        "aws_pdx:-18337:10199",
+        "aws_pdx:-18337:10201",
+        "aws_pdx:-18337:10202",
+        "aws_pdx:-18338:10197",
+        "aws_pdx:-18338:10202"
+      ],
+      "models": {
+        "Random Forest": {
+          "overall_accuracy": 0.9957805907172996,
+          "macro_f1": 0.9959089599539037,
+          "cohen_kappa": 0.9938329430132709,
+          "confusion_matrix": [
+            [
+              77,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              44,
+              1,
+              0
+            ],
+            [
+              0,
+              0,
+              97,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              18
+            ]
+          ],
+          "labels": [
+            "Vegetation / Agriculture",
+            "Built-up",
+            "Bare Soil / Fallow",
+            "Water"
+          ],
+          "per_class": [
+            {
+              "class_id": 1,
+              "class_name": "Vegetation / Agriculture",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 77
+            },
+            {
+              "class_id": 2,
+              "class_name": "Built-up",
+              "precision": 1.0,
+              "recall": 0.9777777777777777,
+              "f1": 0.9887640449438202,
+              "support": 45
+            },
+            {
+              "class_id": 3,
+              "class_name": "Bare Soil / Fallow",
+              "precision": 0.9897959183673469,
+              "recall": 1.0,
+              "f1": 0.9948717948717949,
+              "support": 97
+            },
+            {
+              "class_id": 4,
+              "class_name": "Water",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 18
+            }
+          ]
+        },
+        "Support Vector Machine": {
+          "overall_accuracy": 0.9957805907172996,
+          "macro_f1": 0.9959574104651825,
+          "cohen_kappa": 0.993849587377381,
+          "confusion_matrix": [
+            [
+              77,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              45,
+              0,
+              0
+            ],
+            [
+              0,
+              1,
+              96,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              18
+            ]
+          ],
+          "labels": [
+            "Vegetation / Agriculture",
+            "Built-up",
+            "Bare Soil / Fallow",
+            "Water"
+          ],
+          "per_class": [
+            {
+              "class_id": 1,
+              "class_name": "Vegetation / Agriculture",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 77
+            },
+            {
+              "class_id": 2,
+              "class_name": "Built-up",
+              "precision": 0.9782608695652174,
+              "recall": 1.0,
+              "f1": 0.989010989010989,
+              "support": 45
+            },
+            {
+              "class_id": 3,
+              "class_name": "Bare Soil / Fallow",
+              "precision": 1.0,
+              "recall": 0.9896907216494846,
+              "f1": 0.9948186528497409,
+              "support": 97
+            },
+            {
+              "class_id": 4,
+              "class_name": "Water",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 18
+            }
+          ]
+        }
+      }
+    },
+    {
+      "fold": 3,
+      "n_train": 962,
+      "n_test": 238,
+      "train_groups": [
+        "aws_pdx:-18330:10196",
+        "aws_pdx:-18330:10197",
+        "aws_pdx:-18330:10198",
+        "aws_pdx:-18330:10201",
+        "aws_pdx:-18330:10203",
+        "aws_pdx:-18330:10204",
+        "aws_pdx:-18330:10205",
+        "aws_pdx:-18331:10198",
+        "aws_pdx:-18331:10200",
+        "aws_pdx:-18331:10201",
+        "aws_pdx:-18331:10203",
+        "aws_pdx:-18331:10204",
+        "aws_pdx:-18331:10205",
+        "aws_pdx:-18332:10197",
+        "aws_pdx:-18332:10198",
+        "aws_pdx:-18332:10199",
+        "aws_pdx:-18332:10201",
+        "aws_pdx:-18332:10202",
+        "aws_pdx:-18332:10203",
+        "aws_pdx:-18332:10204",
+        "aws_pdx:-18332:10205",
+        "aws_pdx:-18333:10196",
+        "aws_pdx:-18333:10197",
+        "aws_pdx:-18333:10198",
+        "aws_pdx:-18333:10200",
+        "aws_pdx:-18333:10202",
+        "aws_pdx:-18333:10203",
+        "aws_pdx:-18333:10204",
+        "aws_pdx:-18333:10205",
+        "aws_pdx:-18334:10196",
+        "aws_pdx:-18334:10197",
+        "aws_pdx:-18334:10198",
+        "aws_pdx:-18334:10199",
+        "aws_pdx:-18334:10200",
+        "aws_pdx:-18334:10201",
+        "aws_pdx:-18334:10202",
+        "aws_pdx:-18334:10203",
+        "aws_pdx:-18334:10204",
+        "aws_pdx:-18334:10205",
+        "aws_pdx:-18335:10196",
+        "aws_pdx:-18335:10197",
+        "aws_pdx:-18335:10198",
+        "aws_pdx:-18335:10201",
+        "aws_pdx:-18335:10202",
+        "aws_pdx:-18335:10204",
+        "aws_pdx:-18335:10205",
+        "aws_pdx:-18336:10197",
+        "aws_pdx:-18336:10198",
+        "aws_pdx:-18336:10200",
+        "aws_pdx:-18336:10201",
+        "aws_pdx:-18336:10202",
+        "aws_pdx:-18337:10196",
+        "aws_pdx:-18337:10198",
+        "aws_pdx:-18337:10199",
+        "aws_pdx:-18337:10200",
+        "aws_pdx:-18337:10201",
+        "aws_pdx:-18337:10202",
+        "aws_pdx:-18337:10203",
+        "aws_pdx:-18337:10204",
+        "aws_pdx:-18337:10205",
+        "aws_pdx:-18338:10197",
+        "aws_pdx:-18338:10198",
+        "aws_pdx:-18338:10199",
+        "aws_pdx:-18338:10200",
+        "aws_pdx:-18338:10201",
+        "aws_pdx:-18338:10202",
+        "aws_pdx:-18338:10203",
+        "aws_pdx:-18338:10204",
+        "aws_pdx:-18338:10205",
+        "aws_pdx:-18339:10196",
+        "aws_pdx:-18339:10197",
+        "aws_pdx:-18339:10198",
+        "aws_pdx:-18339:10200",
+        "aws_pdx:-18339:10201",
+        "aws_pdx:-18339:10202",
+        "aws_pdx:-18339:10203",
+        "aws_pdx:-18339:10204",
+        "aws_pdx:-18339:10205"
+      ],
+      "test_groups": [
+        "aws_pdx:-18330:10199",
+        "aws_pdx:-18330:10200",
+        "aws_pdx:-18330:10202",
+        "aws_pdx:-18331:10197",
+        "aws_pdx:-18331:10199",
+        "aws_pdx:-18331:10202",
+        "aws_pdx:-18332:10200",
+        "aws_pdx:-18333:10199",
+        "aws_pdx:-18333:10201",
+        "aws_pdx:-18335:10199",
+        "aws_pdx:-18335:10200",
+        "aws_pdx:-18335:10203",
+        "aws_pdx:-18336:10199",
+        "aws_pdx:-18336:10203",
+        "aws_pdx:-18336:10204",
+        "aws_pdx:-18336:10205",
+        "aws_pdx:-18337:10197",
+        "aws_pdx:-18338:10196",
+        "aws_pdx:-18339:10199"
+      ],
+      "models": {
+        "Random Forest": {
+          "overall_accuracy": 0.9915966386554622,
+          "macro_f1": 0.991812865497076,
+          "cohen_kappa": 0.987714860888866,
+          "confusion_matrix": [
+            [
+              81,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              44,
+              0,
+              0
+            ],
+            [
+              0,
+              2,
+              94,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              17
+            ]
+          ],
+          "labels": [
+            "Vegetation / Agriculture",
+            "Built-up",
+            "Bare Soil / Fallow",
+            "Water"
+          ],
+          "per_class": [
+            {
+              "class_id": 1,
+              "class_name": "Vegetation / Agriculture",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 81
+            },
+            {
+              "class_id": 2,
+              "class_name": "Built-up",
+              "precision": 0.9565217391304348,
+              "recall": 1.0,
+              "f1": 0.9777777777777777,
+              "support": 44
+            },
+            {
+              "class_id": 3,
+              "class_name": "Bare Soil / Fallow",
+              "precision": 1.0,
+              "recall": 0.9791666666666666,
+              "f1": 0.9894736842105263,
+              "support": 96
+            },
+            {
+              "class_id": 4,
+              "class_name": "Water",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 17
+            }
+          ]
+        },
+        "Support Vector Machine": {
+          "overall_accuracy": 0.9873949579831933,
+          "macro_f1": 0.9876463321371846,
+          "cohen_kappa": 0.9815475267483331,
+          "confusion_matrix": [
+            [
+              81,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              43,
+              1,
+              0
+            ],
+            [
+              0,
+              2,
+              94,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              17
+            ]
+          ],
+          "labels": [
+            "Vegetation / Agriculture",
+            "Built-up",
+            "Bare Soil / Fallow",
+            "Water"
+          ],
+          "per_class": [
+            {
+              "class_id": 1,
+              "class_name": "Vegetation / Agriculture",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 81
+            },
+            {
+              "class_id": 2,
+              "class_name": "Built-up",
+              "precision": 0.9555555555555556,
+              "recall": 0.9772727272727273,
+              "f1": 0.9662921348314607,
+              "support": 44
+            },
+            {
+              "class_id": 3,
+              "class_name": "Bare Soil / Fallow",
+              "precision": 0.9894736842105263,
+              "recall": 0.9791666666666666,
+              "f1": 0.9842931937172775,
+              "support": 96
+            },
+            {
+              "class_id": 4,
+              "class_name": "Water",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 17
+            }
+          ]
+        }
+      }
+    },
+    {
+      "fold": 4,
+      "n_train": 957,
+      "n_test": 243,
+      "train_groups": [
+        "aws_pdx:-18330:10196",
+        "aws_pdx:-18330:10197",
+        "aws_pdx:-18330:10198",
+        "aws_pdx:-18330:10199",
+        "aws_pdx:-18330:10200",
+        "aws_pdx:-18330:10201",
+        "aws_pdx:-18330:10202",
+        "aws_pdx:-18330:10204",
+        "aws_pdx:-18330:10205",
+        "aws_pdx:-18331:10197",
+        "aws_pdx:-18331:10198",
+        "aws_pdx:-18331:10199",
+        "aws_pdx:-18331:10200",
+        "aws_pdx:-18331:10202",
+        "aws_pdx:-18331:10203",
+        "aws_pdx:-18331:10204",
+        "aws_pdx:-18331:10205",
+        "aws_pdx:-18332:10197",
+        "aws_pdx:-18332:10198",
+        "aws_pdx:-18332:10199",
+        "aws_pdx:-18332:10200",
+        "aws_pdx:-18332:10201",
+        "aws_pdx:-18332:10202",
+        "aws_pdx:-18332:10203",
+        "aws_pdx:-18332:10204",
+        "aws_pdx:-18333:10196",
+        "aws_pdx:-18333:10197",
+        "aws_pdx:-18333:10199",
+        "aws_pdx:-18333:10201",
+        "aws_pdx:-18333:10202",
+        "aws_pdx:-18333:10205",
+        "aws_pdx:-18334:10196",
+        "aws_pdx:-18334:10197",
+        "aws_pdx:-18334:10199",
+        "aws_pdx:-18334:10200",
+        "aws_pdx:-18334:10201",
+        "aws_pdx:-18334:10202",
+        "aws_pdx:-18334:10204",
+        "aws_pdx:-18334:10205",
+        "aws_pdx:-18335:10196",
+        "aws_pdx:-18335:10198",
+        "aws_pdx:-18335:10199",
+        "aws_pdx:-18335:10200",
+        "aws_pdx:-18335:10201",
+        "aws_pdx:-18335:10203",
+        "aws_pdx:-18335:10204",
+        "aws_pdx:-18335:10205",
+        "aws_pdx:-18336:10198",
+        "aws_pdx:-18336:10199",
+        "aws_pdx:-18336:10200",
+        "aws_pdx:-18336:10201",
+        "aws_pdx:-18336:10202",
+        "aws_pdx:-18336:10203",
+        "aws_pdx:-18336:10204",
+        "aws_pdx:-18336:10205",
+        "aws_pdx:-18337:10196",
+        "aws_pdx:-18337:10197",
+        "aws_pdx:-18337:10198",
+        "aws_pdx:-18337:10199",
+        "aws_pdx:-18337:10200",
+        "aws_pdx:-18337:10201",
+        "aws_pdx:-18337:10202",
+        "aws_pdx:-18337:10203",
+        "aws_pdx:-18337:10204",
+        "aws_pdx:-18337:10205",
+        "aws_pdx:-18338:10196",
+        "aws_pdx:-18338:10197",
+        "aws_pdx:-18338:10198",
+        "aws_pdx:-18338:10199",
+        "aws_pdx:-18338:10202",
+        "aws_pdx:-18338:10204",
+        "aws_pdx:-18338:10205",
+        "aws_pdx:-18339:10196",
+        "aws_pdx:-18339:10197",
+        "aws_pdx:-18339:10198",
+        "aws_pdx:-18339:10199",
+        "aws_pdx:-18339:10200",
+        "aws_pdx:-18339:10203",
+        "aws_pdx:-18339:10204",
+        "aws_pdx:-18339:10205"
+      ],
+      "test_groups": [
+        "aws_pdx:-18330:10203",
+        "aws_pdx:-18331:10201",
+        "aws_pdx:-18332:10205",
+        "aws_pdx:-18333:10198",
+        "aws_pdx:-18333:10200",
+        "aws_pdx:-18333:10203",
+        "aws_pdx:-18333:10204",
+        "aws_pdx:-18334:10198",
+        "aws_pdx:-18334:10203",
+        "aws_pdx:-18335:10197",
+        "aws_pdx:-18335:10202",
+        "aws_pdx:-18336:10197",
+        "aws_pdx:-18338:10200",
+        "aws_pdx:-18338:10201",
+        "aws_pdx:-18338:10203",
+        "aws_pdx:-18339:10201",
+        "aws_pdx:-18339:10202"
+      ],
+      "models": {
+        "Random Forest": {
+          "overall_accuracy": 1.0,
+          "macro_f1": 1.0,
+          "cohen_kappa": 1.0,
+          "confusion_matrix": [
+            [
+              78,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              45,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              104,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              16
+            ]
+          ],
+          "labels": [
+            "Vegetation / Agriculture",
+            "Built-up",
+            "Bare Soil / Fallow",
+            "Water"
+          ],
+          "per_class": [
+            {
+              "class_id": 1,
+              "class_name": "Vegetation / Agriculture",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 78
+            },
+            {
+              "class_id": 2,
+              "class_name": "Built-up",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 45
+            },
+            {
+              "class_id": 3,
+              "class_name": "Bare Soil / Fallow",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 104
+            },
+            {
+              "class_id": 4,
+              "class_name": "Water",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 16
+            }
+          ]
+        },
+        "Support Vector Machine": {
+          "overall_accuracy": 0.9958847736625515,
+          "macro_f1": 0.9907393116221639,
+          "cohen_kappa": 0.9938914027149321,
+          "confusion_matrix": [
+            [
+              78,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              45,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              104,
+              0
+            ],
+            [
+              0,
+              0,
+              1,
+              15
+            ]
+          ],
+          "labels": [
+            "Vegetation / Agriculture",
+            "Built-up",
+            "Bare Soil / Fallow",
+            "Water"
+          ],
+          "per_class": [
+            {
+              "class_id": 1,
+              "class_name": "Vegetation / Agriculture",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 78
+            },
+            {
+              "class_id": 2,
+              "class_name": "Built-up",
+              "precision": 1.0,
+              "recall": 1.0,
+              "f1": 1.0,
+              "support": 45
+            },
+            {
+              "class_id": 3,
+              "class_name": "Bare Soil / Fallow",
+              "precision": 0.9904761904761905,
+              "recall": 1.0,
+              "f1": 0.9952153110047847,
+              "support": 104
+            },
+            {
+              "class_id": 4,
+              "class_name": "Water",
+              "precision": 1.0,
+              "recall": 0.9375,
+              "f1": 0.967741935483871,
+              "support": 16
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "gini_feature_importance": [
+    {
+      "feature": "SR_B2",
+      "importance": 0.09682030524021175
+    },
+    {
+      "feature": "SR_B3",
+      "importance": 0.05558043233800468
+    },
+    {
+      "feature": "SR_B4",
+      "importance": 0.13657832879541273
+    },
+    {
+      "feature": "SR_B5",
+      "importance": 0.17164928887694192
+    },
+    {
+      "feature": "SR_B6",
+      "importance": 0.06273481472924029
+    },
+    {
+      "feature": "SR_B7",
+      "importance": 0.12435471788713416
+    },
+    {
+      "feature": "NDVI",
+      "importance": 0.08905752166720067
+    },
+    {
+      "feature": "NDBI",
+      "importance": 0.11570699464733446
+    },
+    {
+      "feature": "MNDWI",
+      "importance": 0.11409795578593633
+    },
+    {
+      "feature": "Albedo",
+      "importance": 0.03341964003258281
+    }
+  ],
+  "limitations": [
+    "Development-only data: these scores are not field accuracy.",
+    "Spatial blocks reduce but do not eliminate spatial dependence; no buffer gap is enforced.",
+    "Sample metrics are not area-adjusted accuracy or proof of operational heat.",
+    "Final fitted models are for inference; scores use held-out predictions only."
+  ]
+}

@@ -27,12 +27,20 @@ label kerja sampai footprint dipadankan dengan sumber operator dan citra histori
 | Komponen | Status aktual |
 |---|---|
 | RF dan SVM, scaling fit pada train, confusion matrix, OA/Kappa/F1 | Ada di `supervised_classification.py` |
-| Pembagian train/test | Stratified random split 75/25 |
-| Grid blok | ID blok ada di `dataset.py`; belum digunakan evaluator |
-| Data label hasil sampling GEE | Pseudo-label aturan NDVI/NDBI/MNDWI |
+| Pembagian train/test | Stratified spatial-group folds pada RF/SVM; leave-site-out tersedia |
+| Grid blok | Grid jarak lokal; blok yang terhubung polygon referensi digabung agar tidak bocor antar fold |
+| Data label hasil sampling GEE | Fetcher lama tetap pseudo-label; skrip `02_supervised_land_cover.js` mengekspor label referensi pengguna |
 | Data lama dan akurasi 100% | Belum layak dijadikan bukti lapangan; metadata asal tidak tersedia dan generator sintetis ada di versi lama |
-| Ablasi fitur, Spatial Block CV, cross-site | Belum dilaksanakan |
+| Ablasi fitur, Spatial Block CV, cross-site | Pilihan fitur, Spatial CV dan cross-site diimplementasikan; eksekusi data riset menunggu label independen kedua lokasi |
 | Regresi nonlinier, SHAP, simulator | Rencana tambahan |
+
+Pembaruan implementasi: lihat [audit klasifikasi](CLASSIFICATION_AUDIT.md) dan
+[panduan supervised classification](SUPERVISED_CLASSIFICATION.md). README dan
+dashboard kini berbahasa Inggris, dengan instruksi Linux/macOS dan Windows.
+Run development Boardman sudah dieksekusi menggunakan data lama yang belum
+memiliki provenance; hasilnya bukan bukti akurasi lapangan. Raster inference RF/SVM
+dan model pooled sudah tersedia, tetapi peta dua lokasi yang tervalidasi tetap
+memerlukan sampel referensi dan ekspor fitur GEE yang sesungguhnya.
 
 Feature importance dari satu model bukan eksperimen ablasi. Akurasi terhadap
 pseudo-label yang dibuat dari indeks masukan terutama mengukur peniruan aturan,

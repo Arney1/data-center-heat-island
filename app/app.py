@@ -1,563 +1,211 @@
-"""
-Streamlit Web Dashboard
-Analisis Multitemporal Suhu Permukaan dan Tutupan Lahan di Sekitar Kampus Pusat Data
-Studi Kasus: AWS PDX Bombing Campus (Boardman, Oregon) | Landsat 8 & 9 (2013-2026)
-Mata Kuliah: Pengolahan Citra Digital (Digital Image Processing)
-"""
-
-import os
-import sys
+"""Consistent two-site dashboard for LST, land cover, and audited results."""
 import json
-import pandas as pd
+import sys
+from pathlib import Path
+
+import folium
 import numpy as np
-import streamlit as st
+import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
+import streamlit as st
 from streamlit_folium import st_folium
 
-# Pengaturan Halaman
-st.set_page_config(
-    page_title="Data Center Thermal DIP Dashboard",
-    page_icon="🛰️",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# Direktori Data & Pipeline
-CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-BASE_DIR = os.path.dirname(CURRENT_DIR)
-DATA_DIR = os.path.join(BASE_DIR, "data", "processed")
-RAW_DATA_DIR = os.path.join(BASE_DIR, "data", "raw")
-
-if BASE_DIR not in sys.path:
-    sys.path.append(BASE_DIR)
-
-from dip_pipeline.gee_fetcher import GEEDataFetcher
+BASE_DIR = Path(__file__).resolve().parents[1]
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+from dip_pipeline.config import SITES
 from dip_pipeline.timeseries import load_zonal_timeseries
 
-# Muat Data
-@st.cache_data
-def load_data():
-    ts_file = os.path.join(DATA_DIR, "zonal_lst_timeseries_2013_2026.csv")
-    built_file = os.path.join(DATA_DIR, "builtup_expansion_trajectory.csv")
-    metrics_file = os.path.join(DATA_DIR, "spatial_metrics_summary.json")
+DATA_DIR = BASE_DIR / "data" / "processed"
+st.set_page_config(page_title="Data Center LST & Land Cover", page_icon="🛰️", layout="wide")
+SITE_LABELS = {"aws_pdx": "AWS Boardman", "h5_quincy2": "H5 Quincy II"}
+site_id = st.sidebar.selectbox("Study site", list(SITE_LABELS), format_func=SITE_LABELS.get)
+site = SITES[site_id]
+page = st.sidebar.radio("Explore", ["Overview", "Study area", "LST & spectral time series",
+                                    "Supervised classification", "Saved DIP artifacts"])
+st.sidebar.caption("Landsat 8/9 Collection 2 Level-2 • June–September • 2013–2026")
+st.sidebar.caption("30 m optical grid; thermal measurements originate at 100 m.")
+st.title(f"{SITE_LABELS[site_id]} — LST & Land Cover")
 
-    df_ts = pd.read_csv(ts_file)
-    df_built = pd.read_csv(built_file)
-    with open(metrics_file, "r") as f:
-        metrics = json.load(f)
 
-    return df_ts, df_built, metrics
+def read_json(path):
+    return json.loads(path.read_text(encoding="utf-8-sig"))
 
-@st.cache_data
-def load_ml_data():
-    ml_file = os.path.join(DATA_DIR, "ml_classification_results.json")
-    feat_file = os.path.join(DATA_DIR, "ml_feature_dataset.csv")
-    ml_res = None
-    df_feat = None
-    if os.path.exists(ml_file):
-        with open(ml_file, "r") as f:
-            ml_res = json.load(f)
-    if os.path.exists(feat_file):
-        df_feat = pd.read_csv(feat_file)
-    return ml_res, df_feat
 
-df_ts, df_built, metrics = load_data()
-ml_results, df_features = load_ml_data()
-# Pilihan lokasi studi
-lokasi = st.sidebar.selectbox(
-    "Pilih lokasi studi",
-    ["AWS Boardman", "H5 Quincy II"]
-)
+def read_timeseries():
+    uploaded = st.sidebar.file_uploader("Upload this site's GEE time-series CSV", type="csv", key=f"ts_{site_id}")
+    filename = ("zonal_lst_timeseries_2013_2026.csv" if site_id == "aws_pdx"
+                else "h5_quincy2_timeseries.csv")
+    source = uploaded if uploaded is not None else DATA_DIR / filename
+    if uploaded is None and not source.exists():
+        return None
+    try:
+        return load_zonal_timeseries(source, site_id)
+    except (ValueError, OSError, UnicodeError) as error:
+        st.error(f"The time-series CSV could not be loaded: {error}")
+        return None
 
-if lokasi == "H5 Quincy II":
-    st.title("🛰️ Analisis Multi-Site: H5 Quincy II (Grant County, WA)")
-    st.markdown("""
-    **H5 Quincy II** merupakan fasilitas data center komparatif di kawasan Quincy, Washington (Columbia Basin).
-    Digunakan untuk studi komparasi lintas tapak (*Cross-Site Comparative Study*) terhadap AWS PDX Boardman.
-    """)
 
-    col_q_info, col_q_map = st.columns([1, 1])
-    with col_q_info:
-        st.markdown("### Karakteristik Tapak H5 Quincy II")
-        st.write("""
-        - **Lokasi:** Quincy, Grant County, Washington (-119.8253° W, 47.2476° N)
-        - **Geometri masukan:** 6 poligon atap hasil digitasi; beberapa tumpang tindih
-        - **Luas tapak dan atap:** metadata konfigurasi belum dihitung ulang
-        - **Periode pra/pasca konstruksi:** belum diverifikasi untuk footprint ini
-        - **Sensor Satelit:** Landsat 8 & 9 Collection 2 Level-2 (L2SP)
-        """)
-        st.info("Seri tahunan dapat dieksplorasi. Perbandingan sebelum/sesudah konstruksi menunggu pencocokan footprint dan bukti kronologi Quincy.")
+def site_map():
+    lon, lat = site["campus_centroid"]
+    result = folium.Map(location=[lat, lon], zoom_start=14, tiles="OpenStreetMap")
+    folium.Polygon([[p[1], p[0]] for p in site["campus_bounds"]],
+                   color="cyan", weight=3, tooltip="Digitized campus boundary").add_to(result)
+    for i, ring in enumerate(site["buildings_multipolygon"]):
+        folium.Polygon([[p[1], p[0]] for p in ring], color="red", fill=True,
+                       fill_opacity=0.3, tooltip=f"Roof annotation {i + 1}").add_to(result)
+    return result
 
-    with col_q_map:
-        st.markdown("### Peta Tapak & Poligon Atap Quincy")
-        try:
-            fetcher_q = GEEDataFetcher(site_id="h5_quincy2")
-            fmap_q = fetcher_q.create_interactive_map(height=420)
-            st_folium(fmap_q, width=540, height=420)
-            st.caption("Merah: poligon atap; cyan: batas digitasi. Lingkaran peta offline hanya ilustrasi jarak dari titik tengah, bukan buffer tepi kampus.")
-        except Exception as err:
-            st.warning(f"Gagal memuat peta interaktif: {err}")
 
-    st.markdown("---")
-    st.subheader("📊 Analisis Runtun Waktu H5 Quincy II")
+def show_scores(scores):
+    rows = [{"Model": name, "Overall accuracy": values["overall_accuracy"],
+             "Macro F1": values["macro_f1"], "Cohen's kappa": values["cohen_kappa"]}
+            for name, values in scores.items()]
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+    model = st.selectbox("Model details", list(scores))
+    values = scores[model]
+    matrix = pd.DataFrame(values["confusion_matrix"], index=values["labels"], columns=values["labels"])
+    st.plotly_chart(px.imshow(matrix, text_auto=True, color_continuous_scale="Blues",
+                             labels={"x": "Predicted class", "y": "Reference class", "color": "Samples"}),
+                    width="stretch")
+    st.dataframe(pd.DataFrame(values["per_class"]), hide_index=True, width="stretch")
 
-    berkas = st.sidebar.file_uploader(
-        "Unggah CSV hasil GEE Quincy",
-        type=["csv"]
-    )
 
-    cache_quincy = os.path.join(DATA_DIR, "h5_quincy2_timeseries.csv")
-    sumber_quincy = berkas if berkas is not None else cache_quincy if os.path.exists(cache_quincy) else None
-    if sumber_quincy is not None:
-        try:
-            df_quincy = load_zonal_timeseries(sumber_quincy, "h5_quincy2")
+if page == "Overview":
+    st.write("Explore surface temperature and land cover at two data-center study sites using the same navigation.")
+    st.write(f"**Location:** {site['location']}")
+    st.write(f"**Digitized roof polygons:** {len(site['buildings_multipolygon'])}")
+    st.caption("Roof annotations can overlap; annotation count is not a verified count of data halls. See the geometry audit for measured polygon areas; these do not verify facility parcels.")
+    st.info("Classification assigns vegetation, built-up land, bare soil, or water to pixels throughout each campus and its 2.5 km surroundings. It does not identify whether a building is a data center.")
+    st.write("A pooled model can learn from both sites. Each site's map and evaluation remain identifiable, and leave-site-out tests measure transfer to the other site.")
+    st.info("Research accuracy requires independent, dated reference labels. Development-only runs and legacy scores are not verified field accuracy.")
+    st.write(f"**Construction chronology:** {site['chronology_status'].replace('_', ' ')}.")
+    st.caption("LST is surface temperature. Observed differences do not directly measure server heat or establish a causal effect of operations.")
 
-            daftar_zona = df_quincy["zona"].dropna().unique().tolist()
-            col_z, col_v = st.columns(2)
-            with col_z:
-                zona = st.selectbox("Pilih Zona:", daftar_zona)
-            with col_v:
-                variabel = st.selectbox("Pilih Variabel Spektral/Termal:", ["LST", "LSTanom", "NDVI", "NDBI", "EMIS"])
+elif page == "Study area":
+    st_folium(site_map(), height=520, use_container_width=True, key=f"geometry_{site_id}")
+    st.caption("Cyan: digitized campus. Red: roof annotations. These are the configured study footprints; their identity and chronology still need verification.")
+    st.write("Analysis zones: campus, roofs, campus excluding roofs, 0–500 m, 500–1,000 m, and 1–2 km from the campus edge. The classification AOI extends 2.5 km from that edge.")
+    st.caption("The regional reference and industrial control require separate suitability checks. No construction-period comparison is inferred from this map.")
 
-            hasil = df_quincy[df_quincy["zona"] == zona].sort_values("tahun")
-            valid = hasil.dropna(subset=[variabel])
-            if not valid.empty:
-                unit = " °C" if variabel in ("LST", "LSTanom") else ""
-                awal, akhir = valid.iloc[0], valid.iloc[-1]
-                c1, c2, c3 = st.columns(3)
-                c1.metric("Rata-rata antar tahun valid", f"{valid[variabel].mean():.2f}{unit}")
-                c2.metric(f"Nilai {int(akhir['tahun'])}", f"{akhir[variabel]:.2f}{unit}")
-                c3.metric(f"Perubahan {int(awal['tahun'])}–{int(akhir['tahun'])}",
-                          f"{akhir[variabel] - awal[variabel]:+.2f}{unit}")
-                st.caption(f"{len(valid)} dari {len(hasil)} tahun memiliki nilai. Perubahan akhir–awal bukan estimasi efek pembangunan atau operasi server.")
-            else:
-                st.info("Tidak ada nilai valid untuk variabel dan zona ini.")
-            st.subheader(f"Dinamika {variabel} pada {zona}")
-            st.line_chart(hasil.set_index("tahun")[[variabel]])
-
-            with st.expander("Lihat Data Tabel Hasil Quincy"):
-                st.dataframe(hasil, use_container_width=True)
-        except Exception as error:
-            st.error(f"CSV tidak dapat diproses: {error}")
+elif page == "LST & spectral time series":
+    frame = read_timeseries()
+    if frame is None:
+        st.info("No usable time series is available for this site. Upload its GEE CSV in the sidebar.")
     else:
-        st.info("ℹ️ Menampilkan visualisasi geometri satelit H5 Quincy II di atas. Unggah file CSV ekspor GEE Quincy (`h5_quincy2_timeseries.csv`) pada bilah sisi kiri untuk mengeksplorasi deret waktu.")
+        if site_id == "aws_pdx":
+            st.caption("Boardman data are stored legacy results; image-level provenance has not been revalidated.")
+        st.caption("An uploaded CSV without site_id is assigned to the selected site. Check its origin before uploading.")
+        zones = frame.zona.unique().tolist()
+        selected = st.multiselect("Zones", zones, default=["0_tapak_penuh"] if "0_tapak_penuh" in zones else zones[:1])
+        variable = st.selectbox("Variable", ["LST", "LSTanom", "NDVI", "NDBI", "EMIS"])
+        view = frame[frame.zona.isin(selected)]
+        if not view.empty:
+            st.line_chart(view.pivot(index="tahun", columns="zona", values=variable))
+            stats = view.groupby("zona")[variable].agg(["count", "mean", "min", "max"])
+            st.dataframe(stats, width="stretch")
+            st.caption("Statistics summarize available annual zone means. Missing values remain missing; LST/LSTanom use °C. Anomalies depend on a suitable regional reference.")
+            st.dataframe(view, hide_index=True, width="stretch")
+            st.download_button("Download selected time series", view.to_csv(index=False),
+                               file_name=f"{site_id}_timeseries.csv", mime="text/csv")
 
-    st.stop()
-
-# Sidebar
-st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/e/e1/Landsat_9_spacecraft_model.png", width=180)
-st.sidebar.title("Navigasi Modul DIP")
-menu = st.sidebar.radio(
-    "Pilih Menu:",
-    [
-        "📌 Ringkasan Eksekutif",
-        "🛰️ Peta Spasial & Cincin Jarak",
-        "📈 Runtun Waktu LST & Indeks Spektral",
-        "🏗️ Lintasan Ekspansi Lahan Terbangun",
-        "📉 Gradien Spasial & Tren Sen's Slope",
-        "⚖️ Evaluasi DiD & Kontrol Berpasangan",
-        "🔬 Indeks IKTL & Sensitivitas Ablasi",
-        "🤖 Machine Learning: Tutupan Lahan (Minggu 1)",
-        "📅 Timeline 4 Minggu & Paper"
-    ]
-)
-
-st.sidebar.markdown("---")
-st.sidebar.info(
-    "**Spesifikasi Sensor & Studi:**\n"
-    "- Sensor: Landsat 8 & 9 (L2SP)\n"
-    "- Lokasi: AWS PDX-178 (Boardman, OR)\n"
-    "- Resolusi Asli: 30m (Reflektansi), 100m (Termal)\n"
-    "- Jendela Musim: Juni - September\n"
-    "- Periode: 2013 - 2026 (14 Tahun)"
-)
-
-# -------------------------------------------------------------
-# MENU 1: RINGKASAN EKSEKUTIF
-# -------------------------------------------------------------
-if menu == "📌 Ringkasan Eksekutif":
-    st.title("🛰️ Analisis Suhu Permukaan & Tutupan Lahan Pusat Data")
-    st.subheader("Studi Pengolahan Citra Digital (DIP) Multitemporal | AWS PDX Bombing Campus")
-
-    st.markdown("""
-    Dashboard ini menyajikan implementasi **Pengolahan Citra Digital (DIP)** terintegrasi untuk mendeteksi
-    jejak termal (*surface thermal anomaly*) dan perubahan tutupan lahan (*land-cover change*) pada kampus pusat data hyperscale
-    menggunakan citra **Landsat 8 dan Landsat 9 Collection 2 Level-2**.
-    """)
-
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Luas Kampus (Tapak)", f"{metrics['campus_info']['total_area_ha']} ha", "127 Acres")
-    with col2:
-        st.metric("Luas Bangunan Pusat Data", f"{metrics['campus_info']['building_area_ha']} ha", "4 Data Halls")
-    with col3:
-        delta_lst = metrics["thermal_anomalies_celsius"]["delta_lst_anom"]["0a_bangunan"]
-        st.metric("Delta Anomali LST Bangunan", f"+{delta_lst:.2f} °C", "Pasca vs Pra")
-    with col4:
-        did_val = metrics["difference_in_differences_did"]["did_net_effect_celsius"]
-        st.metric("Net Effect DiD (Kontrol)", f"+{did_val:.2f} °C", "Tingkat C")
-
-    st.markdown("### 🎯 Rumusan Masalah & Pertanyaan Penelitian (RQ)")
-    st.markdown("""
-    | No | Pertanyaan Penelitian | Pendekatan DIP | Status |
-    |---|---|---|---|
-    | **RQ1** | Bagaimana LST dan tutupan lahan berubah antarperiode di tapak dan zona sekitar? | Kalibrasi L2SP, Masking QA, Reduksi Median Musiman | ✅ Selesai |
-    | **RQ2** | Apakah kenaikan LST berasosiasi dengan penurunan NDVI dan kenaikan NDBI? | Ekstraksi Indeks Normalisasi & Korelasi Multivariat | ✅ Selesai |
-    | **RQ3** | Bagaimana pola gradien suhu menurut cincin jarak dari pusat data? | Penyangga Cincin (0-500m, 500-1000m, 1-2km) & Profil Gradien | ✅ Selesai |
-    | **RQ4** | Di mana anomali LST cenderung naik persisten sepanjang 2013–2026? | Tren Non-Parametrik Sen's Slope & Mann-Kendall | ✅ Selesai |
-    | **RQ5** | Apakah efek jarak dalam regresi multivariat bergeser setelah operasi? | Regresi Linear Kovariat Spasial (NDVI, NDBI, Elevasi, Albedo) | ✅ Selesai |
-    | **RQ6** | Seberapa sensitif indeks koinsidensi terhadap ablasi komponen (IKTL)? | Matriks Harkat Kuantil & Ablasi V1–V4 | ✅ Selesai |
-    | **RQ7** | Apakah kenaikan suhu berbeda dari fasilitas industri kontrol non-DC? | Difference-in-Differences (DiD) Kontrol Berpasangan | ✅ Selesai |
-    """)
-
-# -------------------------------------------------------------
-# MENU 2: PETA SPASIAL & CINCIN JARAK
-# -------------------------------------------------------------
-elif menu == "🛰️ Peta Spasial & Cincin Jarak":
-    st.title("🛰️ Geometri Spasial & Cincin Jarak Penyangga (Spatial Buffer Rings)")
-    st.markdown("""
-    Unit analisis termal didefinisikan secara hierarkis untuk memisahkan efek material atap bangunan,
-    lingkungan internal kampus, dan jangkauan pengaruh ke luar batas tapak (*spillover effect*).
-    """)
-
-    col_map, col_info = st.columns([2, 1])
-
-    with col_info:
-        st.markdown("### Hierarki Zona Spasial")
-        st.write("""
-        1. **0a_bangunan**: Poligon murni atap gedung data center (~8.6 ha).
-        2. **0b_sisa_tapak**: Halaman, jalan akses internal, dan gardu induk (~42.8 ha).
-        3. **0_tapak_penuh**: Batas luar pagar (*fence line*) kampus (~51.4 ha).
-        4. **Zona 1 (0 - 500m)**: Penyangga terdekat di luar pagar.
-        5. **Zona 2 (500 - 1000m)**: Penyangga menengah.
-        6. **Zona 3 (1 - 2km)**: Penyangga luar untuk estimasi peluruhan gradien.
-        7. **Area Referensi Regional**: Lahan pertanian stabil (5 - 12 km, lereng < 3°).
-        8. **Kontrol Berpasangan**: Fasilitas logistik/manufaktur Boardman (-119.6975, 45.8361).
-        """)
-
-    with col_map:
-        st.markdown("### Peta Interaktif Tapak & Cincin Penyangga")
+elif page == "Supervised classification":
+    st.write("Classes: vegetation/agriculture, built-up land, bare soil/fallow, and water.")
+    st.caption("Models cover the full AOI of each selected site. A pooled run uses both AOIs, not the land between the cities.")
+    runs = []
+    for path in sorted((DATA_DIR / "classification").glob("*/metrics.json")):
         try:
-            fetcher = GEEDataFetcher()
-            fmap = fetcher.create_interactive_map(height=480)
-            st_folium(fmap, width=720, height=480)
-            st.caption("🔴 Merah: 4 Data Halls | 🔵 Biru Muda: Batas Kampus | 🟡 Kuning/Oranye/Hijau: Buffer 500m, 1km, 2km | 🟣 Ungu: Kontrol Industri")
-        except Exception as e:
-            # Fallback jika folium rendering mengalami kendala
-            coords = metrics["campus_info"]["coordinates"]
-            map_df = pd.DataFrame({
-                "lat": [coords[1], 45.8361],
-                "lon": [coords[0], -119.6975],
-                "name": ["AWS PDX-178 Campus", "Paired Logistics Control"]
-            })
-            st.map(map_df, latitude="lat", longitude="lon", size=40, zoom=11)
-            st.caption("Peta Koordinat Centroid")
-
-# -------------------------------------------------------------
-# MENU 3: RUNUT WAKTU LST & INDEKS SPEKTRAL
-# -------------------------------------------------------------
-elif menu == "📈 Runtun Waktu LST & Indeks Spektral":
-    st.title("📈 Dinamika Runtun Waktu Multitemporal (2013 - 2026)")
-    st.markdown("Analisis evolusi suhu permukaan dan parameter spektral sebelum, selama, dan sesudah konstruksi kampus.")
-
-    zona_options = df_ts["zona"].unique().tolist()
-    selected_zonas = st.multiselect("Pilih Zona untuk Ditampilkan:", zona_options, default=["0a_bangunan", "0_tapak_penuh", "1_0-500m", "3_1-2km"])
-    metric_choice = st.selectbox("Pilih Variabel Spektral/Termal:", ["LSTanom", "LST", "NDVI", "NDBI", "EMIS"], index=0)
-
-    filtered_df = df_ts[df_ts["zona"].isin(selected_zonas)]
-    chart_pivot = filtered_df.pivot(index="tahun", columns="zona", values=metric_choice)
-
-    st.line_chart(chart_pivot)
-    st.caption(f"Grafik Dinamika Tahunan variabel **{metric_choice}** (Rata-rata Musim Panas Juni - September). Garis vertikal 2022 menandai awal konstruksi.")
-
-    with st.expander("Lihat Data Tabel Mentah"):
-        st.dataframe(filtered_df.sort_values(by=["tahun", "zona"]), use_container_width=True)
-
-# -------------------------------------------------------------
-# MENU 4: LINTASAN EKSPANSI LAHAN TERBANGUN
-# -------------------------------------------------------------
-elif menu == "🏗️ Lintasan Ekspansi Lahan Terbangun":
-    st.title("🏗️ Lintasan Ekspansi Fisik Bangunan & Lahan Terbangun (ha)")
-    st.markdown("""
-    Deteksi tahun mulai terbangun persisten menggunakan metode **Backward Cumulative AND**
-    pada ambang spektral $NDBI > -0.1$ dan $NDVI < 0.2$.
-    """)
-
-    bldg_df = df_built[df_built["zona"] == "bangunan"].set_index("tahun")["ha"]
-    rest_df = df_built[df_built["zona"] == "sisa_tapak"].set_index("tahun")["ha"]
-
-    combined_built = pd.DataFrame({
-        "Bangunan Utama (ha)": bldg_df,
-        "Sisa Tapak / Infrastruktur (ha)": rest_df
-    })
-
-    st.bar_chart(combined_built)
-    st.markdown("""
-    **Interpretasi Kronologi Pembangunan:**
-    - **2013 - 2021 (Pra-Konstruksi):** Area tapak merupakan semak semi-arid / lahan terbuka alami (< 0.5 ha struktur).
-    - **2022 (Awal Konstruksi):** Pembukaan lahan besar-besaran, perataan tanah (*grading*), dan fondasi gedung 1 & 2.
-    - **2023 - 2024 (Ekspansi Puncak):** Pemasangan rangka baja, atap ber-albedo tinggi, dan gardu induk Umatilla Electric.
-    - **2025 - 2026 (Operasional):** Keempat gedung data center beroperasi penuh (total atap mencapai 8.6 ha).
-    """)
-
-# -------------------------------------------------------------
-# MENU 5: GRADIEN SPASIAL & SEN'S SLOPE
-# -------------------------------------------------------------
-elif menu == "📉 Gradien Spasial & Tren Sen's Slope":
-    st.title("📉 Profil Gradien Spasial & Tren Non-Parametrik")
-
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown("### Gradien Spasial Penurunan Suhu (°C/km)")
-        grads = metrics["spatial_gradients"]
-        st.metric("Gradien Pra-Konstruksi", f"{grads['pre_gradient_c_per_km']:.3f} °C/km")
-        st.metric("Gradien Pasca-Konstruksi", f"{grads['post_gradient_c_per_km']:.3f} °C/km")
-        st.metric("Perubahan Gradien (Delta G)", f"{grads['delta_gradient_c_per_km']:.3f} °C/km", "Pola pulau panas meluruh tajam")
-
-    with c2:
-        st.markdown("### Analisis Tren Sen's Slope & Mann-Kendall")
-        st.markdown("""
-        Tren dihitung atas **anomali LST** ($LST - LST_{ref}$) untuk mengeliminasi variabilitas gelombang panas regional:
-        - **Piksel Bangunan:** Sen's Slope = **+0.185 °C/tahun**, Kendall's $\\tau = +0.72$ ($p < 0.001$). Signifikan positif.
-        - **Buffer 1-2 km:** Sen's Slope = **-0.012 °C/tahun**, Kendall's $\\tau = -0.08$ ($p = 0.65$). Tidak signifikan (stabil).
-        """)
-
-# -------------------------------------------------------------
-# MENU 6: DIFFERENCE-IN-DIFFERENCES
-# -------------------------------------------------------------
-elif menu == "⚖️ Evaluasi DiD & Kontrol Berpasangan":
-    st.title("⚖️ Analisis Difference-in-Differences (DiD - Tingkat C)")
-    st.markdown("""
-    Untuk membedakan kenaikan suhu akibat panas komputasi operasional dari pemanasan akibat "efek beton biasa",
-    kampus pusat data dibandingkan dengan fasilitas industri logistik kontrol non-DC di Boardman Industrial Park.
-    """)
-
-    did = metrics["difference_in_differences_did"]
-
-    col_a, col_b, col_c = st.columns(3)
-    with col_a:
-        st.metric("Δ LST Kampus DC (Pasca - Pra)", f"+{did['delta_lst_campus']:.2f} °C")
-    with col_b:
-        st.metric("Δ LST Kontrol Logistik", f"+{did['delta_lst_control_logistics']:.2f} °C")
-    with col_c:
-        st.metric("Estimator Efek Bersih Relatif (DiD)", f"+{did['did_net_effect_celsius']:.2f} °C", "Kelebihan panas di atas beton biasa")
-
-    st.info(f"**Temuan Metodologis:** {did['interpretation']}")
-
-# -------------------------------------------------------------
-# MENU 7: INDEKS IKTL & ABLASI
-# -------------------------------------------------------------
-elif menu == "🔬 Indeks IKTL & Sensitivitas Ablasi":
-    st.title("🔬 Indeks Koinsidensi Termal-Lahan (IKTL)")
-    st.markdown("""
-    Indeks deskriptif multi-kriteria untuk menandai sel di mana anomali suhu (V1), penurunan vegetasi (V2),
-    peningkatan kekedapan/lahan terbangun (V3), dan konversi fisik lahan (V4) terjadi serentak.
-    """)
-
-    scenario = st.selectbox(
-        "Pilih Skenario Ablasi Komponen:",
-        [
-            "full_v1_v4 (Model Penuh: Termal + Permukaan + Konversi)",
-            "without_v1_thermal (Tanpa Komponen Termal LST)",
-            "without_v2_v3_surface (Tanpa Komponen Penurunan NDVI / Kenaikan NDBI)",
-            "without_v4_conversion (Tanpa Matriks Konversi Tutupan Lahan)"
-        ]
-    )
-
-    scenario_key = scenario.split(" ")[0]
-    dist_data = metrics["iktl_class_distribution_ha"][scenario_key]
-    df_dist = pd.DataFrame(list(dist_data.items()), columns=["Kelas IKTL", "Luas Area (ha)"])
-
-    st.bar_chart(df_dist.set_index("Kelas IKTL"))
-    st.dataframe(df_dist, use_container_width=True)
-
-# -------------------------------------------------------------
-# MENU 8: MACHINE LEARNING TUTUPAN LAHAN (MINGGU 1)
-# -------------------------------------------------------------
-elif menu == "🤖 Machine Learning: Tutupan Lahan (Minggu 1)":
-    st.title("🤖 Machine Learning: Klasifikasi Tutupan Lahan Terbimbing")
-    st.subheader("Minggu 1: Ekstraksi Fitur Citra Landsat via EE/Geemap & Pemodelan Random Forest/SVM")
-
-    st.markdown("""
-    Pada **Minggu 1**, pipeline Python bertindak sebagai **Fetcher** data satelit langsung melalui
-    `earthengine-api` dan `geemap` (mentranslasi `01_full_analysis_aws_pdx.js`), mengekstraksi tumpukan fitur
-    spektral-termal 30m, dan melatih model klasifikasi tutupan lahan terawasi (*Supervised Land Cover Classification*).
-    """)
-
-    if ml_results is not None:
-        st.warning("Metrik ML tersimpan belum memiliki provenance dan validasi spasial. Versi lama dapat memakai data sintetis atau pseudo-label; angka ini bukan akurasi lapangan terverifikasi.")
-        rf_metrics = ml_results["models_comparison"]["Random Forest"]
-        svm_metrics = ml_results["models_comparison"]["Support Vector Machine"]
-
-        # KPI Metrics Cards
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Akurasi Keseluruhan (RF)", f"{rf_metrics['overall_accuracy'] * 100:.1f}%", "Target: > 88%")
-        with col2:
-            st.metric("Cohen's Kappa (RF)", f"{rf_metrics['cohen_kappa']:.4f}", "Target: > 0.82")
-        with col3:
-            st.metric("Akurasi SVM (RBF)", f"{svm_metrics['overall_accuracy'] * 100:.1f}%", "Pembanding")
-        with col4:
-            st.metric("Total Sampel Piksel", f"{ml_results['n_train_samples'] + ml_results['n_test_samples']}", "Train: 75% | Test: 25%")
-
-        tab_model, tab_feat, tab_data = st.tabs([
-            "📊 Evaluasi Model & Matriks Konfusi",
-            "🎯 Kepentingan Fitur (Feature Importance)",
-            "📁 Eksplorasi Dataset Fitur (1,200 Piksel)"
-        ])
-
-        with tab_model:
-            col_cm, col_class = st.columns([1, 1])
-
-            with col_cm:
-                st.markdown("#### Matriks Konfusi Random Forest")
-                labels = ["Vegetation", "Built-up", "Bare Soil", "Water"]
-                cm_matrix = np.array(rf_metrics["confusion_matrix"])
-
-                fig_cm = px.imshow(
-                    cm_matrix,
-                    x=[f"Pred: {l}" for l in labels],
-                    y=[f"True: {l}" for l in labels],
-                    text_auto=True,
-                    color_continuous_scale="Blues",
-                    labels=dict(x="Kelas Prediksi", y="Kelas Aktual", color="Jumlah Piksel")
-                )
-                fig_cm.update_layout(height=380, margin=dict(l=40, r=40, t=30, b=30))
-                st.plotly_chart(fig_cm, use_container_width=True)
-
-            with col_class:
-                st.markdown("#### Kinerja Per Kelas Tutupan Lahan")
-                per_class = ml_results["per_class_performance"]
-                class_rows = []
-                for c_name, val in per_class.items():
-                    class_rows.append({
-                        "Kelas": c_name,
-                        "Precision (RF)": f"{val['rf_users_accuracy_precision'] * 100:.1f}%",
-                        "Recall (RF)": f"{val['rf_producers_accuracy_recall'] * 100:.1f}%",
-                        "F1-Score (RF)": val["rf_f1_score"],
-                        "F1-Score (SVM)": val["svm_f1_score"]
-                    })
-                df_class = pd.DataFrame(class_rows)
-                st.dataframe(df_class, use_container_width=True, hide_index=True)
-
-                st.markdown("""
-                **Catatan Evaluasi:**
-                - Model berhasil membedakan lahan terbangun (*Built-up / Data Center*) dengan presisi tinggi dari tanah terbuka (*Bare Soil*) berbasis kombinasi band SWIR (B6, B7), NDBI, dan LST.
-                - Akurasi keseluruhan melampaui target ambang batas ilmiah (> 88% OA dan > 0.82 Kappa).
-                """)
-
-        with tab_feat:
-            st.markdown("#### Peringkat Fitur Paling Berpengaruh (Gini Impurity Importance)")
-            df_feat_imp = pd.DataFrame(ml_results["gini_feature_importance"])
-
-            fig_imp = px.bar(
-                df_feat_imp.sort_values(by="importance", ascending=True),
-                x="importance",
-                y="feature",
-                orientation="h",
-                labels={"importance": "Nilai Kepentingan Gini", "feature": "Fitur Spektral-Termal"},
-                color="importance",
-                color_continuous_scale="Viridis"
-            )
-            fig_imp.update_layout(height=420, margin=dict(l=40, r=40, t=20, b=20))
-            st.plotly_chart(fig_imp, use_container_width=True)
-
-            st.info(
-                "💡 **Interpretasi Spektral:** Suhu Permukaan (LST), Modified Normalized Difference Water Index (MNDWI), "
-                "serta band Red/NIR (SR_B4, SR_B5) menjadi kontributor terkuat dalam memisahkan karakter biofisik "
-                "atap data center dan vegetasi pertanian beririgasi."
-            )
-
-        with tab_data:
-            if df_features is not None:
-                st.markdown("#### Tabel Sampel Piksel Multitemporal Terkalibrasi")
-                selected_classes = st.multiselect(
-                    "Saring Kelas Tutupan Lahan:",
-                    options=df_features["land_cover_name"].unique().tolist(),
-                    default=df_features["land_cover_name"].unique().tolist()
-                )
-                filtered_df = df_features[df_features["land_cover_name"].isin(selected_classes)]
-                st.dataframe(filtered_df.head(100), use_container_width=True)
-                st.caption(f"Menampilkan 100 dari {len(filtered_df)} sampel terpilih.")
-
-                csv_bytes = filtered_df.to_csv(index=False).encode("utf-8")
-                st.download_button(
-                    label="📥 Unduh Dataset Fitur (.CSV)",
-                    data=csv_bytes,
-                    file_name="landsat_features_aws_pdx.csv",
-                    mime="text/csv"
-                )
-            else:
-                st.warning("File dataset fitur belum terdeteksi di direktori data.")
+            result = read_json(path)
+            if result.get("schema_version") == 2 and site_id in result.get("site_ids", []):
+                runs.append((path, result))
+        except (ValueError, OSError):
+            st.warning(f"A saved classification run could not be read: {path.parent.name}")
+    if not runs:
+        st.info("No classification run is available for this site. Reference-label collection is the next step; an LST zone-average CSV cannot train a pixel classifier.")
+        st.write("See the README and supervised-classification guide for drawing reference areas in GEE, exporting labeled pixels, and running RF/SVM.")
     else:
-        st.warning("Hasil pelatihan Machine Learning belum ditemukan. Jalankan pipeline via `python -m dip_pipeline.ml.runner_ml`.")
+        selected_run = st.selectbox("Saved run", range(len(runs)), format_func=lambda i: runs[i][0].parent.name)
+        path, report = runs[selected_run]
+        if report["claim_status"] == "development_only":
+            st.warning("DEVELOPMENT ONLY — source metadata or independent labels are missing. Scores below are software-check results, not verified land-cover accuracy.")
+        else:
+            st.info("Scores use spatially held-out reference labels. Label interpretation and sampling representativeness still require review.")
+        st.write(f"**Validation:** {report['validation']} · **Evaluated samples:** {report['n_evaluated_samples']} · **Folds:** {report['n_folds']}")
+        scores = report.get("per_site_performance", {}).get(site_id)
+        if scores:
+            st.caption(f"Held-out scores for {SITE_LABELS[site_id]}; run-wide results are available in the report download.")
+            # Baseline site scores are optional for older schema-v2 artifacts.
+            show_scores(scores)
+        else:
+            st.info("This site was used for training only in this transfer run; no held-out score is available for it.")
+        predictions_path = path.parent / "heldout_predictions.csv"
+        if predictions_path.exists():
+            predictions = pd.read_csv(predictions_path)
+            pixels = predictions[predictions.site_id.eq(site_id) & predictions.fold.ge(0)]
+            with st.expander("Held-out sample predictions"):
+                st.dataframe(pixels.head(1000), hide_index=True, width="stretch")
+                if not pixels.empty:
+                    model_col = "Random Forest"
+                    points = pixels.head(1000)
+                    fig = px.scatter_map(points, lat="latitude", lon="longitude",
+                                         color=points[model_col].astype(str),
+                                         map_style="open-street-map", zoom=12,
+                                         title="Held-out sample points — not a classified raster")
+                    st.plotly_chart(fig, width="stretch")
+                st.download_button("Download held-out samples", pixels.to_csv(index=False),
+                                   file_name=f"{site_id}_heldout_predictions.csv", mime="text/csv")
+        importance = pd.DataFrame(report["gini_feature_importance"])
+        st.plotly_chart(px.bar(importance.sort_values("importance"), x="importance", y="feature",
+                              orientation="h", title="RF feature importance — descriptive, not causal"),
+                        width="stretch")
+        st.subheader("Full-area classified raster")
+        matching_rasters = []
+        for raster_path in sorted(path.parent.glob("*.tif")):
+            try:
+                import rasterio
+                with rasterio.open(raster_path) as raster:
+                    tags = raster.tags()
+                    if tags.get("site_id") == site_id and tags.get("dataset_sha256") == report["dataset_sha256"]:
+                        matching_rasters.append(raster_path)
+            except (OSError, ImportError):
+                st.warning(f"Could not inspect raster {raster_path.name}.")
+        if matching_rasters:
+            raster_path = st.selectbox("Classified raster", matching_rasters, format_func=lambda p: p.name)
+            with rasterio.open(raster_path) as raster:
+                factor = min(1, 1000 / max(raster.height, raster.width))
+                classes = raster.read(1, out_shape=(max(1, int(raster.height * factor)),
+                                                   max(1, int(raster.width * factor))))
+                colors = np.array([[255, 255, 255], [44, 160, 44], [214, 39, 40],
+                                   [188, 189, 34], [31, 119, 180]], dtype="uint8")
+                if not np.isin(classes, [0, 1, 2, 3, 4]).all():
+                    st.error("Raster contains unexpected class IDs.")
+                else:
+                    st.image(colors[classes], caption=f"{raster_path.name}: green vegetation; red built-up; yellow bare soil; blue water; white no data.")
+                    st.caption("Downsampled class-raster preview. It is separate from the held-out sample map and inherits this run's validation limitations.")
+        else:
+            st.info("No full-area classification raster has been produced for this run and site. Held-out sample points above are not a complete land-cover map.")
+        st.download_button("Download run report", json.dumps(report, indent=2),
+                           file_name=f"{path.parent.name}_metrics.json", mime="application/json")
+        for limitation in report["limitations"]:
+            st.caption(limitation)
 
-# -------------------------------------------------------------
-# MENU 9: TIMELINE 4 MINGGU & ROADMAP PAPER
-# -------------------------------------------------------------
-elif menu == "📅 Timeline 4 Minggu & Paper":
-    st.title("📅 Roadmap 4 Minggu Menuju Deadline Proyek")
-    st.subheader("Rencana Kerja Terstruktur Machine Learning & Penulisan Paper Riset")
+elif page == "Saved DIP artifacts":
+    st.warning("Saved DIP artifacts are legacy outputs, not a fresh image audit. Chronology, control suitability, and image counts are not verified by loading these files.")
+    if site_id != "aws_pdx":
+        st.info("No Quincy built-area, DiD, gradient, or IKTL artifacts are available. Boardman artifacts are never substituted.")
+    else:
+        metrics_path = DATA_DIR / "spatial_metrics_summary.json"
+        built_path = DATA_DIR / "builtup_expansion_trajectory.csv"
+        if built_path.exists():
+            built = pd.read_csv(built_path)
+            st.subheader("Stored built-area trajectory")
+            st.bar_chart(built.pivot(index="tahun", columns="zona", values="ha"))
+            st.caption("Stored spectral built-up estimates are not ground-truth roof areas.")
+        if metrics_path.exists():
+            legacy = read_json(metrics_path)
+            section = st.selectbox("Stored artifact", list(legacy))
+            st.json(legacy[section])
+        st.caption("The old 100% classification JSON is retained on disk for traceability and is excluded from current classification results.")
 
-    st.markdown("""
-    Dengan batas waktu pengumpulan 4 minggu ke depan, pekerjaan dibagi menjadi 4 sprint mingguan terfokus:
-    """)
-
-    timeline_data = [
-        {
-            "Minggu": "Minggu 1 (Minggu Ini)",
-            "Fokus Utama": "Data Fetcher (EE/Geemap) & Supervised Land Cover Classification",
-            "Aktivitas Kunci": "Porting 01_full_analysis_aws_pdx.js ke Python, penarikan fitur langsung dari GEE, pelatihan Random Forest & SVM, matriks konfusi, feature importance.",
-            "Status": "✅ SELESAI"
-        },
-        {
-            "Minggu": "Minggu 2",
-            "Fokus Utama": "Spatial Regression Suhu Permukaan (LST) & Explainable AI (XAI)",
-            "Aktivitas Kunci": "Regresi spasial non-linear (RF Regressor/GBoost), 5-Fold Spatial Block Cross-Validation (mencegah autokorelasi spasial bocor), analisis SHAP attribution.",
-            "Status": "⏳ TERJADWAL"
-        },
-        {
-            "Minggu": "Minggu 3",
-            "Fokus Utama": "Unsupervised Hotspot Detection, Ablasi IKTL, & Uji Plasebo",
-            "Aktivitas Kunci": "Deteksi anomali termal tanpa supervisi (DBSCAN & Isolation Forest), klasterisasi K-Means multi-k, uji hipotesis Difference-in-Differences (DiD) dan plasebo.",
-            "Status": "⏳ TERJADWAL"
-        },
-        {
-            "Minggu": "Minggu 4",
-            "Fokus Utama": "Integrasi Penuh Dashboard Streamlit & Finalisasi Paper Ilmiah",
-            "Aktivitas Kunci": "Penyempurnaan peta interaktif Geemap (split map slider), simulator prediksi interaktif di web, dan finalisasi manuskrip paper (IEEE/ISPRS format).",
-            "Status": "⏳ TERJADWAL"
-        }
-    ]
-
-    st.table(pd.DataFrame(timeline_data))
-
-    st.markdown("---")
-    st.subheader("📄 Kerangka Manuskrip Paper Ilmiah (Format IEEE / ISPRS)")
-    st.markdown("""
-    - **Judul Kerja:** *Multitemporal Surface Temperature and Land-Cover Dynamics Around Hyperscale AI Data Centers: A Landsat 8/9 and Machine Learning Study at Boardman, Oregon*
-    - **I. Introduction:**
-      - Ledakan komputasi kecerdasan buatan (AI hyperscalers) dan beban pendinginan termal fasilitas data center.
-      - Tinjauan kritis paper Marinoni dkk. (2026) mengenai keterbatasan resolusi MODIS 500m dan absennya kontrol kuasi-eksperimental.
-    - **II. Study Area & Remote Sensing Dataset:**
-      - Karakteristik AWS PDX Bombing Campus (127 acres, 4 data halls) di lingkungan semi-arid Morrow County.
-      - Citra Landsat 8/9 Collection 2 Level-2 (L2SP) musim panas 2013–2026, kalibrasi radiometrik, dan filtering QA.
-    - **III. Methodology (DIP & Machine Learning):**
-      - Kompositing median musiman, ekstraksi indeks biofisik (NDVI, NDBI, MNDWI, Albedo Liang 2001).
-      - Cincin penyangga spasial (0–500m, 500–1000m, 1–2km) dan area referensi pertanian regional.
-      - Supervised Classification (Random Forest & SVM) untuk deteksi tutupan lahan.
-      - Difference-in-Differences (DiD) terhadap fasilitas industri non-DC dan validasi blok spasial.
-    - **IV. Results & Discussion:**
-      - Lonjakan area terbangun (+13.12 ha) pasca-konstruksi 2022–2025.
-      - Respons anomali termal (+1.72 °C tapak kampus, +2.31 °C atap bangunan, DiD net effect +1.42 °C).
-      - Analisis peluruhan gradien spasial dan audit artefak emisivitas ASTER GED.
-    - **V. Threats to Validity & Limitations:**
-      - Perbedaan LST (suhu permukaan material radiatif) vs suhu udara ambient.
-      - Batasan pemisahan proporsi panas buangan operasional server vs perubahan karakteristik termal atap gedung.
-    - **VI. Conclusion:**
-      - Sintesis temuan menjawab RQ1–RQ7 dan rekomendasi perencanaan tapak data center hijau.
-    """)
-
-st.markdown("---")
-st.caption("Pusat Data & Suhu Permukaan Dashboard | Pengolahan Citra Digital (DIP) 2026")
+st.divider()
+st.caption("Data Center LST & Land Cover • observational remote-sensing study")

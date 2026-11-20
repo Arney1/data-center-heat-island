@@ -1,84 +1,116 @@
-"""
-Eksekutor Pipeline Machine Learning (Week 1 Runner)
-Menjalankan pelatihan, validasi, perbandingan model, dan ekspor metrik klasifikasi tutupan lahan.
-"""
-
-import os
+"""Explicit training, audit, and inference CLI. No implicit GEE fetches."""
+import argparse
 import json
-import pandas as pd
+from pathlib import Path
+import joblib
 import numpy as np
-
+import pandas as pd
+from .dataset import (MLDatasetManager, ALL_CLASSIFICATION_FEATURES, SPECTRAL_BANDS,
+                      THERMAL_FEATURES, CLASS_NAMES)
 from .supervised_classification import LandCoverClassifier
-from .dataset import MLDatasetManager, CLASS_NAMES
-from ..config import PROCESSED_DATA_DIR
+from ..config import PROCESSED_DATA_DIR, SITES
 
 
-def run_week1_ml_pipeline():
-    print("=" * 75)
-    print("PIPELINE MACHINE LEARNING - MINGGU 1: SUPERVISED LAND COVER CLASSIFICATION")
-    print("Studi Kasus: AWS PDX Bombing Campus (Boardman, Oregon)")
-    print("=" * 75)
-
-    # 1. Pastikan Dataset Fitur Tersedia
-    print("\n[LANGKAH 1] Inisialisasi & Pemeriksaan Dataset Fitur Spektral-Termal...")
-    dm = MLDatasetManager()
-    df = dm.df
-    print(f"  - Total Sampel Piksel: {len(df)}")
-    print(f"  - Fitur yang Diekstraksi: {len(df.columns) - 4} kolom (Spektral, Indeks, Termal, Spasial)")
-    
-    print("\n  Distribusi Kelas Tutupan Lahan:")
-    class_counts = df["land_cover_class"].value_counts().sort_index()
-    for c_id, count in class_counts.items():
-        c_name = CLASS_NAMES.get(c_id, "Unknown")
-        pct = (count / len(df)) * 100
-        print(f"    * Kelas {c_id} ({c_name}): {count} piksel ({pct:.1f}%)")
-
-    # 2. Latih & Evaluasi Model
-    print("\n[LANGKAH 2] Pelatihan Model Klasifikasi Terbimbing (Random Forest & SVM)...")
-    classifier = LandCoverClassifier()
-    results = classifier.train_and_evaluate()
-
-    # 3. Cetak Perbandingan Kinerja Model
-    rf_res = results["models_comparison"]["Random Forest"]
-    svm_res = results["models_comparison"]["Support Vector Machine"]
-
-    print("\n" + "-" * 75)
-    print("HASIL EVALUASI MODEL KLASIFIKASI (TEST SET 25%):")
-    print("-" * 75)
-    print(f"  - RANDOM FOREST CLASSIFIER:")
-    print(f"      * Overall Accuracy (OA) : {rf_res['overall_accuracy'] * 100:.2f}% (Target: > 88%)")
-    print(f"      * Cohen's Kappa         : {rf_res['cohen_kappa']:.4f} (Target: > 0.82)")
-    print(f"  - SUPPORT VECTOR MACHINE (RBF):")
-    print(f"      * Overall Accuracy (OA) : {svm_res['overall_accuracy'] * 100:.2f}%")
-    print(f"      * Cohen's Kappa         : {svm_res['cohen_kappa']:.4f}")
-
-    # 4. Matriks Konfusi Random Forest
-    print("\n[LANGKAH 3] Matriks Konfusi Random Forest:")
-    cm = np.array(rf_res["confusion_matrix"])
-    labels = ["1_Vegetation", "2_Built-up", "3_Bare_Soil", "4_Water"]
-    cm_df = pd.DataFrame(cm, index=[f"True_{l}" for l in labels], columns=[f"Pred_{l}" for l in labels])
-    print(cm_df.to_string())
-
-    # 5. Kinerja Per Kelas
-    print("\n[LANGKAH 4] Evaluasi Per Kelas (User's Accuracy & Producer's Accuracy):")
-    for c_name, m in results["per_class_performance"].items():
-        print(f"  * {c_name}:")
-        print(f"      - Precision (User's Acc)     : {m['rf_users_accuracy_precision'] * 100:.2f}%")
-        print(f"      - Recall (Producer's Acc)    : {m['rf_producers_accuracy_recall'] * 100:.2f}%")
-        print(f"      - F1-Score                   : {m['rf_f1_score']:.4f}")
-
-    # 6. Fitur Paling Berpengaruh (Feature Importance)
-    print("\n[LANGKAH 5] 5 Fitur Spektral-Termal Paling Berpengaruh (Gini Importance):")
-    for item in results["gini_feature_importance"][:5]:
-        print(f"  - {item['feature']:<12}: {item['importance']:.4f}")
-
-    print("\n" + "=" * 75)
-    print("STATUS MINGGU 1: TUGAS MACHINE LEARNING & EE FETCHER TELAH TUNTAS!")
-    print(f"Hasil lengkap tersimpan di {os.path.join(PROCESSED_DATA_DIR, 'ml_classification_results.json')}")
-    print("=" * 75)
-
-    return results
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    commands = parser.add_subparsers(dest="command", required=True)
+    train = commands.add_parser("train", help="Evaluate spatially, then fit models for inference.")
+    train.add_argument("--csv", nargs="+", required=True)
+    train.add_argument("--site", choices=[*SITES, "pooled"], required=True)
+    train.add_argument("--features", choices=["bands", "optical", "optical_thermal"], default="optical")
+    train.add_argument("--folds", type=int, default=5)
+    train.add_argument("--block-size-m", type=float, default=500)
+    train.add_argument("--validation", choices=["spatial", "leave_site_out"], default="spatial")
+    train.add_argument("--test-site", choices=list(SITES))
+    train.add_argument("--allow-unverified", action="store_true")
+    train.add_argument("--allow-synthetic", action="store_true")
+    train.add_argument("--output")
+    audit = commands.add_parser("audit", help="Inspect dataset provenance without changing data.")
+    audit.add_argument("--csv", required=True)
+    predict = commands.add_parser("predict", help="Predict labeled or unlabeled pixel CSVs using a trusted local model.")
+    predict.add_argument("--model", required=True)
+    predict.add_argument("--csv", required=True)
+    predict.add_argument("--output", required=True)
+    raster = commands.add_parser("predict-raster", help="Classify a complete georeferenced feature GeoTIFF.")
+    raster.add_argument("--model", required=True)
+    raster.add_argument("--raster", required=True)
+    raster.add_argument("--output", required=True)
+    raster.add_argument("--site", choices=list(SITES), required=True)
+    raster.add_argument("--year", type=int, required=True)
+    raster.add_argument("--model-type", choices=["rf", "svm"], default="rf")
+    raster.add_argument("--band-order", nargs="+")
+    args = parser.parse_args(argv)
+    try:
+        if args.command == "predict-raster":
+            from .raster_prediction import classify_raster
+            report = classify_raster(args.model, args.raster, args.output,
+                site_id=args.site, year=args.year, model_type=args.model_type, band_order=args.band_order)
+            print(f"Saved classified raster: {args.output}; status={report['claim_status']}")
+            return 0
+        if args.command == "audit":
+            df = pd.read_csv(args.csv)
+            report = {"file": args.csv, "n_samples": len(df), "columns": df.columns.tolist(),
+                      "missing_provenance_columns": sorted(
+                          {"site_id", "data_source", "label_source", "reference_id", "reference_date",
+                           "reference_source"} - set(df))}
+            if "land_cover_class" in df:
+                report["class_counts"] = {str(k): int(v) for k, v in df.land_cover_class.value_counts().items()}
+            print(json.dumps(report, indent=2))
+            return 0
+        if args.command == "predict":
+            # joblib uses pickle: only load artifacts produced locally or otherwise trusted.
+            bundle = joblib.load(args.model)
+            df = pd.read_csv(args.csv)
+            needed = {"site_id", "longitude", "latitude", "year", *bundle["features"]}
+            if not needed.issubset(df):
+                raise ValueError("Prediction CSV is missing: " + ", ".join(sorted(needed - set(df))))
+            if not df.site_id.isin(SITES).all():
+                raise ValueError("Prediction CSV contains an unknown site.")
+            X = df[bundle["features"]].apply(pd.to_numeric, errors="raise").to_numpy()
+            if not len(df) or not np.isfinite(X).all():
+                raise ValueError("Prediction CSV must contain finite pixel features.")
+            for name, model in bundle["models"].items():
+                df[name] = model.predict(X)
+            df["claim_status"] = bundle["metadata"]["claim_status"]
+            df["model_dataset_sha256"] = bundle["metadata"]["dataset_sha256"]
+            output = Path(args.output)
+            output.parent.mkdir(parents=True, exist_ok=True)
+            df.to_csv(output, index=False)
+            print(f"Saved {len(df)} pixel predictions to {output}. These are not area totals.")
+            return 0
+        features = SPECTRAL_BANDS if args.features == "bands" else ALL_CLASSIFICATION_FEATURES
+        if args.features == "optical_thermal":
+            features = features + THERMAL_FEATURES
+        frames = [pd.read_csv(p) for p in args.csv]
+        frame = pd.concat(frames, ignore_index=True)
+        if args.site != "pooled" and "site_id" in frame:
+            frame = frame[frame.site_id.eq(args.site)].copy()
+        if args.site == "pooled" and ("site_id" not in frame or frame.site_id.nunique() < 2):
+            raise ValueError("Pooled training requires explicitly identified samples from both sites.")
+        if args.validation == "leave_site_out" and (args.site != "pooled" or not args.test_site):
+            raise ValueError("Use --site pooled --test-site SITE for leave-site-out evaluation.")
+        manager = MLDatasetManager(frame=frame, site_id=None if args.site == "pooled" else args.site,
+                    allow_unverified=args.allow_unverified, allow_synthetic=args.allow_synthetic, features=features)
+        suffix = "_development" if manager.claim_status == "development_only" else ""
+        suffix += f"_{args.features}_{args.validation}"
+        if args.test_site:
+            suffix += f"_{args.test_site}"
+        output = Path(args.output or Path(PROCESSED_DATA_DIR) / "classification" / (args.site + suffix))
+        if output.exists() and any(output.iterdir()):
+            raise ValueError(f"Output directory is not empty: {output}. Choose a new --output to preserve previous runs.")
+        results = LandCoverClassifier(manager).train_and_evaluate(
+            n_splits=args.folds, block_size_m=args.block_size_m, output_dir=output,
+            validation=args.validation, test_site=args.test_site)
+        print(f"Classification completed: {results['claim_status']}; sites={results['site_ids']}")
+        for name, scores in results["models_comparison"].items():
+            print(f"{name}: OA={scores['overall_accuracy']:.4f}, macro-F1={scores['macro_f1']:.4f}")
+        print(f"Artifacts: {output}")
+        if results["claim_status"] == "development_only":
+            print("NOT research accuracy: reference labels/source provenance are missing or synthetic.")
+        return 0
+    except (ValueError, FileNotFoundError, KeyError, OSError, ImportError) as error:
+        parser.exit(2, f"Classification stopped: {error}\n")
 
 
 if __name__ == "__main__":
-    run_week1_ml_pipeline()
+    raise SystemExit(main())

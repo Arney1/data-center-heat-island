@@ -1,0 +1,61 @@
+{
+  "scope": "local artifacts and geometry, not historical-image or independent-label verification",
+  "sites": {
+    "aws_pdx": {
+      "chronology_status": "legacy_assumption_requires_verification",
+      "geometry_valid": true,
+      "digitized_campus_ha": 38.235825082329285,
+      "union_clipped_roofs_ha": 13.306244785958249,
+      "overlap_double_count_ha": 0,
+      "legacy_campus_ha": 38.14,
+      "legacy_roofs_ha": 13.27,
+      "label_status": "independent reference samples not supplied in the repository",
+      "timeseries": {
+        "status": "schema_valid",
+        "n_rows": 84,
+        "missing_values": {
+          "tahun": 0,
+          "zona": 0,
+          "LST": 0,
+          "LSTanom": 0,
+          "EMIS": 0,
+          "NDVI": 0,
+          "NDBI": 0,
+          "refLST": 0,
+          "site_id": 0
+        }
+      }
+    },
+    "h5_quincy2": {
+      "chronology_status": "unverified_footprint_and_construction_dates",
+      "geometry_valid": true,
+      "digitized_campus_ha": 2.7847223216937853,
+      "union_clipped_roofs_ha": 1.5097362468927336,
+      "overlap_double_count_ha": 0.23294475629728462,
+      "legacy_campus_ha": 2.93,
+      "legacy_roofs_ha": 1.35,
+      "label_status": "independent reference samples not supplied in the repository",
+      "timeseries": {
+        "status": "not_available"
+      }
+    }
+  },
+  "legacy_ml": {
+    "n_samples": 1200,
+    "missing_metadata": [
+      "data_source",
+      "label_source",
+      "reference_date",
+      "reference_id",
+      "reference_source",
+      "site_id"
+    ],
+    "claim_status": "unverified_legacy_not_field_accuracy"
+  },
+  "research_blockers": [
+    "Review independent reference-label quality and spatial coverage at each site.",
+    "Quincy footprint identity and construction chronology remain unverified.",
+    "The old 100% accuracy result uses a random split and unknown data provenance.",
+    "Image counts, control suitability, and historical construction dates are not established by local CSVs."
+  ]
+}

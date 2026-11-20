@@ -1,5 +1,11 @@
 # Langkah Quincy Setelah Grafik LST
 
+Pembaruan 20 November 2026: software klasifikasi RF/SVM, validasi blok spasial,
+model pooled/cross-site dan inferensi GeoTIFF kini tersedia. Ikuti
+[panduan terbaru](SUPERVISED_CLASSIFICATION.md) untuk langkah GEE dan ekspor label.
+Sampel referensi Quincy belum tersedia di repositori; daftar di bawah adalah
+pekerjaan data yang masih relevan, bukan klaim bahwa seluruh software belum ada.
+
 Panduan lanjutan untuk kondisi saat ini: CSV hasil GEE sudah tampil di Streamlit.
 Kode terbaru berada di `app/app.py`; tidak perlu mencari salinan
 `app_dua_lokasi.py` dari panduan percobaan sebelumnya.
